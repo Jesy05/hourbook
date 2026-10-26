@@ -1,3 +1,5 @@
+import type { ExcelPalette } from './palettes';
+
 export type Language = 'es' | 'en';
 
 /** 0 = Sunday ... 6 = Saturday, same convention as date-fns. */
@@ -32,6 +34,8 @@ export interface Profile {
   invoice: InvoiceSettings;
   overtime: OvertimeSettings;
   categories: string[];
+  /** Last Excel palette used, offered for the next report. */
+  excelPalette?: ExcelPalette;
   createdAt: number;
 }
 
@@ -100,6 +104,8 @@ export interface InvoiceDraft {
   createdAt: number;
   updatedAt: number;
   edited: boolean;
+  /** Colors used in the exported workbook. */
+  palette?: ExcelPalette;
   invoiceNumber: string;
   issueDate: string;
   fromName: string;
@@ -140,6 +146,7 @@ export interface OvertimeDraft {
   createdAt: number;
   updatedAt: number;
   edited: boolean;
+  palette?: ExcelPalette;
   standardHours: number;
   hoursPerDay: number;
   openingBalance: number;

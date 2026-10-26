@@ -138,3 +138,26 @@ describe('invoice workbook', () => {
     expect(invoiceFileName(invoiceDraft)).toBe('Jesy_Gonzalez_Invoice_2026-10.xlsx');
   });
 });
+
+describe('palettes', () => {
+  it('uses the Hourbook colors by default', async () => {
+    const wb = await roundTrip(buildOvertimeWorkbook('Jaimie Gonzalez', otDraft, redeemed));
+    const ws = wb.getWorksheet('OT Tracker')!;
+    expect((ws.getCell('A1').fill as ExcelJS.FillPattern).fgColor?.argb).toBe('FFC93638');
+    expect((ws.getCell('A3').fill as ExcelJS.FillPattern).fgColor?.argb).toBe('FFFA855A');
+  });
+
+  it('applies the chosen palette with readable text on every role', async () => {
+    const draft = { ...otDraft, palette: { title: '#1F4E79', header: '#9DC3E6', stripe: '#EEF5FB', total: '#FFD966' } };
+    const wb = await roundTrip(buildOvertimeWorkbook('Jaimie Gonzalez', draft, redeemed));
+    const ws = wb.getWorksheet('OT Tracker')!;
+    const fill = (a: string) => (ws.getCell(a).fill as ExcelJS.FillPattern).fgColor?.argb;
+    expect(fill('A1')).toBe('FF1F4E79'); // title band
+    expect(ws.getCell('A1').font.color?.argb).toBe('FFFFFFFF'); // white on dark blue
+    expect(fill('A3')).toBe('FF9DC3E6'); // header
+    expect(ws.getCell('A3').font.color?.argb).toBe('FF2B2B2B'); // dark on light blue
+    expect(fill('A5')).toBe('FFEEF5FB'); // second body row is striped
+    expect(fill('A4')).toBe('FFFFFFFF'); // first body row stays white
+    expect(fill('G9')).toBe('FFFFD966'); // BALANCE total
+  });
+});

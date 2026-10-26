@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { InvoiceEditor } from '../components/InvoiceEditor';
 import { OvertimeEditor } from '../components/OvertimeEditor';
+import { PalettePicker } from '../components/PalettePicker';
 import { useRedeemed } from '../components/RedeemedPanel';
 import { useToast } from '../components/Toast';
 import { Button, ConfirmDialog, EmptyState } from '../components/ui';
 import { formatInvoiceNumber } from '../lib/calc';
 import { generateInvoiceDraft, generateOvertimeDraft, redeemedInPeriod } from '../lib/drafts';
+import { normalizePalette, type ExcelPalette } from '../lib/palettes';
 import { useStore } from '../lib/store';
 import { todayIn } from '../lib/tz';
 import type { Draft } from '../lib/types';
@@ -36,6 +38,14 @@ export function ReportEditor() {
   }
 
   const update = (next: Draft) => saveDraft({ ...next, edited: true, updatedAt: Date.now() });
+
+  // Colors are not content: changing them does not mark the draft as edited.
+  // The choice is also remembered on the profile for the next report.
+  const palette = normalizePalette(draft.palette ?? profile.excelPalette);
+  const setPalette = (next: ExcelPalette) => {
+    saveDraft({ ...draft, palette: next, updatedAt: Date.now() });
+    saveProfile({ ...profile, excelPalette: next });
+  };
 
   const regenerate = () => {
     const next =
@@ -101,6 +111,8 @@ export function ReportEditor() {
           {t('reports.draftNote')}
         </p>
       </div>
+
+      <PalettePicker palette={palette} onChange={setPalette} />
 
       {draft.type === 'invoice' ? (
         <InvoiceEditor draft={draft} onChange={update} />

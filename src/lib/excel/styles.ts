@@ -1,6 +1,7 @@
 import type { Borders, Cell, Fill, Font, Worksheet } from 'exceljs';
+import { normalizePalette, textOn, type ExcelPalette } from '../palettes';
 
-/* Shared look for every exported workbook: the app palette, Calibri 11, thin gray borders. */
+/* Shared look for every exported workbook: the chosen palette, Calibri 11, thin gray borders. */
 
 export const ARGB = {
   tomato: 'FFC93638',
@@ -62,43 +63,74 @@ export function columnLetter(index: number): string {
   return s;
 }
 
-/** A merged tomato band with white bold text. */
-export function titleBand(ws: Worksheet, row: number, fromCol: number, toCol: number, text: string, size = 14): void {
+/** Fill and text colors (ARGB) for each palette role. */
+export interface ExcelColors {
+  titleFill: string;
+  titleText: string;
+  headerFill: string;
+  headerText: string;
+  stripeFill: string;
+  stripeText: string;
+  totalFill: string;
+  totalText: string;
+}
+
+function argb(hex: string): string {
+  return `FF${hex.slice(1).toUpperCase()}`;
+}
+
+export function excelColors(palette: ExcelPalette): ExcelColors {
+  const p = normalizePalette(palette);
+  return {
+    titleFill: argb(p.title),
+    titleText: argb(textOn(p.title)),
+    headerFill: argb(p.header),
+    headerText: argb(textOn(p.header)),
+    stripeFill: argb(p.stripe),
+    stripeText: argb(textOn(p.stripe)),
+    totalFill: argb(p.total),
+    totalText: argb(textOn(p.total)),
+  };
+}
+
+/** A merged band in the title color. */
+export function titleBand(c: ExcelColors, ws: Worksheet, row: number, fromCol: number, toCol: number, text: string, size = 14): void {
   ws.mergeCells(row, fromCol, row, toCol);
   const cell = ws.getCell(row, fromCol);
   cell.value = text;
-  cell.font = font({ bold: true, size, color: { argb: ARGB.white } });
-  cell.fill = solid(ARGB.tomato);
+  cell.font = font({ bold: true, size, color: { argb: c.titleText } });
+  cell.fill = solid(c.titleFill);
   cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
   ws.getRow(row).height = size > 14 ? 34 : 26;
-  for (let c = fromCol; c <= toCol; c++) ws.getCell(row, c).fill = solid(ARGB.tomato);
+  for (let col = fromCol; col <= toCol; col++) ws.getCell(row, col).fill = solid(c.titleFill);
 }
 
-export function headerCell(cell: Cell, value: string, align: 'left' | 'right' | 'center' = 'left'): void {
+export function headerCell(c: ExcelColors, cell: Cell, value: string, align: 'left' | 'right' | 'center' = 'left'): void {
   cell.value = value;
-  cell.font = font({ bold: true });
-  cell.fill = solid(ARGB.coral);
+  cell.font = font({ bold: true, color: { argb: c.headerText } });
+  cell.fill = solid(c.headerFill);
   cell.border = BORDER;
   cell.alignment = { vertical: 'middle', horizontal: align, wrapText: true };
 }
 
-export function headerRow(ws: Worksheet, row: number, startCol: number, labels: string[], rightAligned: number[] = []): void {
-  labels.forEach((label, i) => headerCell(ws.getCell(row, startCol + i), label, rightAligned.includes(i) ? 'right' : 'left'));
+export function headerRow(c: ExcelColors, ws: Worksheet, row: number, startCol: number, labels: string[], rightAligned: number[] = []): void {
+  labels.forEach((label, i) => headerCell(c, ws.getCell(row, startCol + i), label, rightAligned.includes(i) ? 'right' : 'left'));
   ws.getRow(row).height = 20;
 }
 
-/** Body cell with the alternating white / light peach stripe. */
-export function bodyCell(cell: Cell, stripe: number, numFmt?: string, align?: 'left' | 'right' | 'center'): void {
-  cell.font = font();
-  cell.fill = solid(stripe % 2 === 0 ? ARGB.white : ARGB.peachSoft);
+/** Body cell; every other row gets the stripe color. */
+export function bodyCell(c: ExcelColors, cell: Cell, stripe: number, numFmt?: string, align?: 'left' | 'right' | 'center'): void {
+  const striped = stripe % 2 === 1;
+  cell.font = font(striped ? { color: { argb: c.stripeText } } : {});
+  cell.fill = solid(striped ? c.stripeFill : ARGB.white);
   cell.border = BORDER;
   if (numFmt) cell.numFmt = numFmt;
   cell.alignment = { vertical: 'top', horizontal: align, wrapText: align === undefined };
 }
 
-export function totalCell(cell: Cell, numFmt?: string, align?: 'left' | 'right'): void {
-  cell.font = font({ bold: true });
-  cell.fill = solid(ARGB.sky);
+export function totalCell(c: ExcelColors, cell: Cell, numFmt?: string, align?: 'left' | 'right'): void {
+  cell.font = font({ bold: true, color: { argb: c.totalText } });
+  cell.fill = solid(c.totalFill);
   cell.border = BORDER;
   if (numFmt) cell.numFmt = numFmt;
   if (align) cell.alignment = { horizontal: align, vertical: 'middle' };
