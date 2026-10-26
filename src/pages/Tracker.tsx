@@ -125,7 +125,7 @@ export function Tracker() {
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card
           title={day === today ? t('entries.today') : formatDay(day, language)}
           icon={<ListChecks size={20} />}
@@ -167,7 +167,12 @@ export function Tracker() {
                 return (
                   <li key={entry.id} className="flex items-center gap-3 px-3 py-3 odd:bg-white even:bg-peach-soft sm:px-4">
                     <div className="min-w-0 flex-1">
-                      <p className={`truncate font-medium ${entry.description ? '' : 'italic text-muted'}`}>{desc}</p>
+                      <p
+                        title={entry.description || undefined}
+                        className={`line-clamp-2 break-words font-medium ${entry.description ? '' : 'italic text-muted'}`}
+                      >
+                        {desc}
+                      </p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
                         <span className="rounded-full bg-sky-soft px-2 py-0.5 font-medium text-ink">{entry.category}</span>
                         <span className="tabular">

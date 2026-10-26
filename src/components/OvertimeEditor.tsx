@@ -63,7 +63,7 @@ export function OvertimeEditor({
         </div>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card
           title={t('ot.weekly')}
           icon={<Table2 size={20} />}
