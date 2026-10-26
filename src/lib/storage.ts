@@ -109,3 +109,47 @@ export function parseBackup(text: string): AppData | null {
     return null;
   }
 }
+
+/* ---------- sync bookkeeping ---------- */
+
+export const SYNC_KEY = 'hourbook:sync';
+
+/** What this browser knows about the server copy of the signed-in user's data. */
+export interface SyncMeta {
+  userId: string;
+  email: string;
+  version: number;
+  /** Last copy both this browser and the server agreed on, used to merge. */
+  base: AppData;
+  /** True when local changes have not reached the server yet. */
+  dirty: boolean;
+}
+
+export function loadSyncMeta(): SyncMeta | null {
+  try {
+    const raw = localStorage.getItem(SYNC_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SyncMeta>;
+    const base = validateData(parsed.base);
+    if (typeof parsed.userId !== 'string' || typeof parsed.version !== 'number' || !base) return null;
+    return { userId: parsed.userId, email: String(parsed.email ?? ''), version: parsed.version, base, dirty: !!parsed.dirty };
+  } catch {
+    return null;
+  }
+}
+
+export function saveSyncMeta(meta: SyncMeta): void {
+  try {
+    localStorage.setItem(SYNC_KEY, JSON.stringify(meta));
+  } catch {
+    /* the next successful save will catch up */
+  }
+}
+
+export function clearSyncMeta(): void {
+  try {
+    localStorage.removeItem(SYNC_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+}

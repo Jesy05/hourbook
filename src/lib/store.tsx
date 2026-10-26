@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { newId } from './defaults';
 import { translate, type MessageKey } from './i18n';
-import { clearData, emptyData, loadData, saveData, STORAGE_KEY, validateData } from './storage';
+import { api, type Session } from './api';
+import { clearData, clearSyncMeta, emptyData, loadData, saveData, STORAGE_KEY, validateData } from './storage';
+import { useRemoteSync, type SyncStatus } from './sync';
 import { closeTimer, elapsedSeconds, idleTimer, MIN_ENTRY_SECONDS, segmentsToEntries } from './timer';
 import type { AppData, Draft, Entry, Language, Profile, RedeemedEntry, TimerState } from './types';
 
@@ -36,14 +38,38 @@ interface Store {
   deleteDraft: (id: string) => void;
   replaceAll: (data: AppData) => void;
   clearAll: () => void;
+  /** Signed-in account, or null when running without a backend. */
+  account: Session | null;
+  syncStatus: SyncStatus;
+  logout: () => Promise<void>;
 }
 
 const StoreContext = createContext<Store | null>(null);
 
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function StoreProvider({
+  children,
+  session = null,
+  onSignedOut,
+  loading,
+}: {
+  children: ReactNode;
+  session?: Session | null;
+  onSignedOut?: () => void;
+  /** Shown until the first sync with the server finishes. */
+  loading?: ReactNode;
+}) {
   const [data, setData] = useState<AppData>(() => loadData());
   const [storageOk, setStorageOk] = useState(true);
   const skipSave = useRef(false);
+
+  const signedOut = useCallback(() => {
+    clearData();
+    clearSyncMeta();
+    onSignedOut?.();
+  }, [onSignedOut]);
+  const sync = useRemoteSync({ session, data, applyRemote: setData, onUnauthorized: signedOut });
+  const adoptExternal = useRef(sync.adoptExternal);
+  adoptExternal.current = sync.adoptExternal;
 
   useEffect(() => {
     if (skipSave.current) {
@@ -61,7 +87,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const next = event.newValue ? validateData(JSON.parse(event.newValue)) : emptyData();
         if (next) {
           skipSave.current = true;
-          setData(next);
+          adoptExternal.current(next);
         }
       } catch {
         /* ignore malformed updates */
@@ -196,9 +222,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         clearData();
         setData({ ...emptyData(), language: data.language });
       },
+      account: session,
+      syncStatus: sync.status,
+      logout: async () => {
+        try {
+          await sync.flush();
+          await api.logout();
+        } catch {
+          /* sign out locally even if the server is unreachable */
+        }
+        signedOut();
+      },
     }),
-    [data, storageOk, profile, profileId, language, t, update, updateTimer, stopTimer],
+    [data, storageOk, profile, profileId, language, t, update, updateTimer, stopTimer, session, sync, signedOut],
   );
+
+  if (!sync.ready) return <>{loading ?? null}</>;
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }

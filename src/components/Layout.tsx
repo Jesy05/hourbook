@@ -1,4 +1,4 @@
-import { CircleAlert, Clock3, FileSpreadsheet, Settings, UserPlus } from 'lucide-react';
+import { CircleAlert, Clock3, Cloud, CloudOff, FileSpreadsheet, LoaderCircle, Settings, UserPlus } from 'lucide-react';
 import { useId } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AppLogo } from './AppLogo';
@@ -6,7 +6,7 @@ import { useStore } from '../lib/store';
 import { isTimerActive } from '../lib/timer';
 
 export function Layout() {
-  const { t, data, profile, setActiveProfile, storageOk } = useStore();
+  const { t, data, profile, setActiveProfile, storageOk, account, syncStatus } = useStore();
   const navigate = useNavigate();
   const selectId = useId();
 
@@ -54,6 +54,7 @@ export function Layout() {
 
           {profile && (
             <div className="ml-auto flex items-center gap-2">
+              {account && <SyncBadge status={syncStatus} label={t(`sync.${syncStatus}`)} />}
               <label htmlFor={selectId} className="sr-only">
                 {t('nav.profile')}
               </label>
@@ -100,5 +101,28 @@ export function Layout() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+function SyncBadge({ status, label }: { status: string; label: string }) {
+  const icon =
+    status === 'saving' || status === 'loading' ? (
+      <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
+    ) : status === 'synced' ? (
+      <Cloud size={18} aria-hidden="true" />
+    ) : (
+      <CloudOff size={18} aria-hidden="true" />
+    );
+  return (
+    <span
+      role="status"
+      title={label}
+      className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+        status === 'error' || status === 'offline' ? 'bg-coral-soft text-tomato' : 'text-muted'
+      }`}
+    >
+      {icon}
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }
