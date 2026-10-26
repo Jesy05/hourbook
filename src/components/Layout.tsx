@@ -1,6 +1,7 @@
 import { CircleAlert, Clock3, FileSpreadsheet, Settings, UserPlus } from 'lucide-react';
 import { useId } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { AppLogo } from './AppLogo';
 import { useStore } from '../lib/store';
 import { isTimerActive } from '../lib/timer';
 
@@ -26,9 +27,7 @@ export function Layout() {
       <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <NavLink to="/" className="flex items-center gap-2 rounded-lg" aria-label={t('app.name')}>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-tomato text-white" aria-hidden="true">
-              <Clock3 size={20} />
-            </span>
+            <AppLogo size={40} />
             <span className="text-lg font-bold tracking-tight">{t('app.name')}</span>
           </NavLink>
 

@@ -1,4 +1,5 @@
-import { Clock3, Languages } from 'lucide-react';
+import { Languages } from 'lucide-react';
+import { AppLogo } from '../components/AppLogo';
 import { useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ProfileForm } from '../components/ProfileForm';
@@ -20,9 +21,7 @@ export function Setup() {
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-tomato text-white" aria-hidden="true">
-              <Clock3 size={26} />
-            </span>
+            <AppLogo size={56} />
             <div>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                 {adding ? t('setup.addTitle') : t('setup.title')}
