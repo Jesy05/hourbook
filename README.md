@@ -50,17 +50,28 @@ The output goes to `dist/`.
 3. Framework preset: **Vite**. Build command: `npm run build`. Output directory: `dist`.
 4. Deploy.
 
-`vercel.json` rewrites every path to `index.html`, so deep links such as `/reports` work after a refresh.
+`vercel.json` rewrites every path except `/api` to `index.html`, so deep links such as `/reports` work after a refresh.
 
-## Where the data lives
+## Accounts and where the data lives
 
-There is no backend and no login. All data is stored in `localStorage` in each person's own browser, under a single versioned key. That means:
+Hourbook works in two modes:
 
-- Data does not sync between devices or browsers.
-- Clearing the browser's site data deletes everything.
-- Use **Settings > Export backup (JSON)** regularly, and **Import backup** to restore it or move it to another browser.
+- **With a database (recommended)**: when `DATABASE_URL` is set, the app asks you to sign in. Each person has an account (email and password, with an option to stay signed in on that device for 60 days). Data is saved to Neon Postgres and syncs across devices. A local copy is kept so the timer keeps working through short connection drops; changes are pushed when the connection comes back, and edits made on two devices at once are merged.
+- **Without a database**: if no backend is configured, everything stays in the browser's `localStorage`, as before.
 
-Payment details entered in invoice mode are stored only in that browser and are written into the downloaded invoice file.
+The first time you create an account in a browser that already has Hourbook data, that data is uploaded to the new account. You can also move data with **Settings > Export backup (JSON)** and **Import backup**.
+
+### Setting up Neon
+
+1. Create a Neon project and copy the pooled connection string (Dashboard > Connect).
+2. Locally: copy `.env.example` to `.env.local` and paste it as `DATABASE_URL`. `npm run dev` then serves the API too.
+3. On Vercel: Project > Settings > Environment Variables, add `DATABASE_URL` (and optionally `ALLOWED_EMAILS`) for Production and Preview, then redeploy.
+
+The tables (`users`, `sessions`, `user_data`) are created automatically on the first request.
+
+Set `ALLOWED_EMAILS` to a comma separated list so only those addresses can create accounts. There is no email-based password reset: to reset one, delete that row from `users` in the Neon SQL editor and sign up again (this also deletes that account's synced data, so export a backup first).
+
+Security notes: passwords are hashed with scrypt, sessions are random tokens stored only as hashes in an HttpOnly, SameSite cookie, write requests must be JSON (blocks cross-site form posts), and an account locks for 15 minutes after 10 wrong passwords.
 
 ## Project structure
 
@@ -76,10 +87,12 @@ src/
     timer.ts       timer to entries, midnight aware
     tz.ts          time zone helpers based on Intl
   components/      shared UI, timer, forms and report editors
-  pages/           Tracker, Reports, Report editor, Settings, Setup
+  pages/           Tracker, Reports, Report editor, Settings, Setup, Auth
+api/               Vercel functions: auth (register, login, logout, me) and data sync
+dev-api.ts         serves api/ inside the Vite dev server
 ```
 
 ## Possible next steps
 
-- A shared cloud backend so data syncs across devices.
+- Password reset by email.
 - Importing an existing overtime spreadsheet to seed past weeks and redeemed time.

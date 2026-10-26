@@ -1,4 +1,4 @@
-import { Database, Download, Languages, Trash2, TriangleAlert, Upload } from 'lucide-react';
+import { Database, Download, Languages, LogOut, Trash2, TriangleAlert, Upload, UserRound } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProfileForm } from '../components/ProfileForm';
@@ -10,7 +10,8 @@ import { useStore } from '../lib/store';
 import type { AppData } from '../lib/types';
 
 export function Settings() {
-  const { t, data, profile, saveProfile, deleteProfile, language, setLanguage, replaceAll, clearAll } = useStore();
+  const { t, data, profile, saveProfile, deleteProfile, language, setLanguage, replaceAll, clearAll, account, logout } =
+    useStore();
   const toast = useToast();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -42,6 +43,20 @@ export function Settings() {
   return (
     <div className="flex flex-col gap-8">
       <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('settings.title')}</h1>
+
+      <Card title={t('account.title')} icon={<UserRound size={20} />}>
+        {account ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm">{t('account.signedInAs', { email: account.email })}</p>
+            <Button onClick={() => void logout()}>
+              <LogOut size={16} aria-hidden="true" />
+              {t('account.logout')}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">{t('account.localOnly')}</p>
+        )}
+      </Card>
 
       <Card title={t('settings.language')} icon={<Languages size={20} />}>
         <p className="mb-3 text-sm text-muted">{t('settings.languageHint')}</p>
@@ -87,7 +102,7 @@ export function Settings() {
       <Card title={t('settings.data')} icon={<Database size={20} />}>
         <p className="mb-4 flex items-start gap-2 rounded-xl border border-peach bg-peach-soft p-3 text-sm text-ink">
           <TriangleAlert size={18} className="mt-0.5 shrink-0 text-tomato" aria-hidden="true" />
-          {t('settings.dataWarning')}
+          {account ? t('settings.dataWarningSynced') : t('settings.dataWarning')}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="info" onClick={exportBackup}>
