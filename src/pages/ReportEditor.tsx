@@ -42,9 +42,9 @@ export function ReportEditor() {
   // Colors are not content: changing them does not mark the draft as edited.
   // The choice is also remembered on the profile for the next report.
   const palette = normalizePalette(draft.palette ?? profile.excelPalette);
-  const setPalette = (next: ExcelPalette) => {
+  const setPalette = (next: ExcelPalette, isCustom: boolean) => {
     saveDraft({ ...draft, palette: next, updatedAt: Date.now() });
-    saveProfile({ ...profile, excelPalette: next });
+    saveProfile({ ...profile, excelPalette: next, customPalette: isCustom ? next : profile.customPalette });
   };
 
   const regenerate = () => {
@@ -112,7 +112,7 @@ export function ReportEditor() {
         </p>
       </div>
 
-      <PalettePicker palette={palette} onChange={setPalette} />
+      <PalettePicker palette={palette} saved={profile.customPalette} onChange={setPalette} />
 
       {draft.type === 'invoice' ? (
         <InvoiceEditor draft={draft} onChange={update} />

@@ -36,6 +36,8 @@ export interface Profile {
   categories: string[];
   /** Last Excel palette used, offered for the next report. */
   excelPalette?: ExcelPalette;
+  /** The one saved custom palette, kept even while a preset is in use. */
+  customPalette?: ExcelPalette;
   createdAt: number;
 }
 

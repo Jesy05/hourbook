@@ -1,7 +1,7 @@
 import { Check, Palette } from 'lucide-react';
 import { useState } from 'react';
 import type { MessageKey } from '../lib/i18n';
-import { PALETTE_ROLES, PRESETS, presetFor, textOn, type ExcelPalette } from '../lib/palettes';
+import { normalizePalette, PALETTE_ROLES, PRESETS, presetFor, textOn, type ExcelPalette } from '../lib/palettes';
 import { useStore } from '../lib/store';
 import { Card } from './ui';
 
@@ -59,11 +59,27 @@ function SheetPreview({ palette }: { palette: ExcelPalette }) {
   );
 }
 
-export function PalettePicker({ palette, onChange }: { palette: ExcelPalette; onChange: (palette: ExcelPalette) => void }) {
+function same(a: ExcelPalette, b: ExcelPalette): boolean {
+  return PALETTE_ROLES.every((role) => a[role].toUpperCase() === b[role].toUpperCase());
+}
+
+export function PalettePicker({
+  palette,
+  saved,
+  onChange,
+}: {
+  palette: ExcelPalette;
+  /** The saved custom palette, if the user has made one. */
+  saved?: ExcelPalette;
+  onChange: (palette: ExcelPalette, isCustom: boolean) => void;
+}) {
   const { t, language } = useStore();
   const current = presetFor(palette);
-  const [customOpen, setCustomOpen] = useState(!current);
+  const savedCustom = saved ? normalizePalette(saved) : undefined;
+  const [customOpen, setCustomOpen] = useState(!current || (!!savedCustom && same(palette, savedCustom)));
   const custom = customOpen || !current;
+  // The custom chip previews the saved slot, or the current colors when there is none yet.
+  const customSwatch = savedCustom ?? palette;
 
   return (
     <Card title={t('palette.title')} icon={<Palette size={20} />}>
@@ -80,7 +96,7 @@ export function PalettePicker({ palette, onChange }: { palette: ExcelPalette; on
               aria-checked={selected}
               onClick={() => {
                 setCustomOpen(false);
-                onChange({ ...preset.palette });
+                onChange({ ...preset.palette }, false);
               }}
               className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                 selected ? 'border-coral bg-peach-soft' : 'border-line bg-surface hover:bg-canvas'
@@ -100,11 +116,22 @@ export function PalettePicker({ palette, onChange }: { palette: ExcelPalette; on
           type="button"
           role="radio"
           aria-checked={custom}
-          onClick={() => setCustomOpen(true)}
+          onClick={() => {
+            setCustomOpen(true);
+            // Bring back the saved custom colors, or start the slot from the current ones.
+            onChange({ ...customSwatch }, true);
+          }}
           className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
             custom ? 'border-coral bg-peach-soft' : 'border-line bg-surface hover:bg-canvas'
           }`}
         >
+          {savedCustom && (
+            <span className="flex overflow-hidden rounded-md border border-line" aria-hidden="true">
+              {PALETTE_ROLES.map((role) => (
+                <span key={role} className="h-5 w-3" style={{ backgroundColor: savedCustom[role] }} />
+              ))}
+            </span>
+          )}
           {t('palette.custom')}
           {custom && <Check size={16} className="text-brand" aria-hidden="true" />}
         </button>
@@ -118,7 +145,7 @@ export function PalettePicker({ palette, onChange }: { palette: ExcelPalette; on
                 <input
                   type="color"
                   value={palette[role]}
-                  onChange={(e) => onChange({ ...palette, [role]: e.target.value.toUpperCase() })}
+                  onChange={(e) => onChange({ ...palette, [role]: e.target.value.toUpperCase() }, true)}
                   aria-label={t('palette.pick', { role: t(ROLE_LABEL[role]) })}
                   className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-line bg-surface p-1"
                 />
@@ -138,6 +165,7 @@ export function PalettePicker({ palette, onChange }: { palette: ExcelPalette; on
             </li>
           ))}
           <li className="text-xs text-muted">{t('palette.textAuto')}</li>
+          {custom && <li className="text-xs text-muted">{t('palette.customSaved')}</li>}
         </ul>
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{t('palette.preview')}</p>
