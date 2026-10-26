@@ -1,4 +1,4 @@
-import { Languages, LoaderCircle, LogIn, UserPlus } from 'lucide-react';
+import { DatabaseZap, Languages, LoaderCircle, LogIn, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { AppLogo } from '../components/AppLogo';
 import { Button, Field, TextInput } from '../components/ui';
@@ -23,6 +23,20 @@ export function LoadingScreen() {
         <AppLogo size={64} />
         <LoaderCircle size={22} className="animate-spin text-brand" aria-hidden="true" />
         <span className="sr-only">Loading</span>
+      </div>
+    </div>
+  );
+}
+
+export function ConfigErrorScreen() {
+  const t = (key: MessageKey) => translate(loadData().language, key);
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
+      <div className="flex max-w-md flex-col items-center gap-4 rounded-2xl border border-line bg-surface p-8 text-center shadow-[var(--shadow-card)]" role="alert">
+        <AppLogo size={56} />
+        <DatabaseZap size={28} className="text-brand" aria-hidden="true" />
+        <h1 className="text-xl font-bold">{t('config.title')}</h1>
+        <p className="text-sm text-muted">{t('config.body')}</p>
       </div>
     </div>
   );

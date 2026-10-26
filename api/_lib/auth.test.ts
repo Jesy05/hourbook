@@ -63,3 +63,20 @@ describe('request guards', () => {
     expect(res.status).toBe(415);
   });
 });
+
+describe('database url', () => {
+  const original = { ...process.env };
+  afterEach(() => {
+    process.env = { ...original };
+  });
+
+  it('cleans a pasted url and accepts the integration names', async () => {
+    const { databaseUrl } = await import('./db.js');
+    delete process.env.DATABASE_URL;
+    delete process.env.NEON_DATABASE_URL;
+    process.env.POSTGRES_URL = ' "postgresql:postgresql://u:p@host/db?sslmode=require" ';
+    expect(databaseUrl()).toBe('postgresql://u:p@host/db?sslmode=require');
+    delete process.env.POSTGRES_URL;
+    expect(databaseUrl()).toBeNull();
+  });
+});

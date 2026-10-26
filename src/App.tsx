@@ -5,7 +5,7 @@ import { ToastProvider } from './components/Toast';
 import { api, ApiError, type Session } from './lib/api';
 import { loadSyncMeta } from './lib/storage';
 import { useStore, StoreProvider } from './lib/store';
-import { AuthScreen, LoadingScreen } from './pages/Auth';
+import { AuthScreen, ConfigErrorScreen, LoadingScreen } from './pages/Auth';
 import { ReportEditor } from './pages/ReportEditor';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
@@ -38,7 +38,12 @@ function AppRoutes() {
  * anon:   backend available, sign in first.
  * authed: signed in, data syncs with the server.
  */
-type AuthState = { status: 'checking' } | { status: 'local' } | { status: 'anon' } | { status: 'authed'; session: Session };
+type AuthState =
+  | { status: 'checking' }
+  | { status: 'local' }
+  | { status: 'anon' }
+  | { status: 'misconfigured' }
+  | { status: 'authed'; session: Session };
 
 function useAuthState(): [AuthState, (state: AuthState) => void] {
   const [state, setState] = useState<AuthState>({ status: 'checking' });
@@ -48,6 +53,11 @@ function useAuthState(): [AuthState, (state: AuthState) => void] {
       .then((session) => setState({ status: 'authed', session }))
       .catch((error) => {
         if (error instanceof ApiError && error.status === 401) return setState({ status: 'anon' });
+        // The deployed site has the API but no database configured: say so instead of
+        // silently keeping data in this browser only. Local dev can still run without one.
+        if (error instanceof ApiError && error.code === 'not_configured' && import.meta.env.PROD) {
+          return setState({ status: 'misconfigured' });
+        }
         if (error instanceof ApiError && error.status !== 503 && error.status !== 404) return setState({ status: 'anon' });
         // Offline on a device that was already signed in: keep working and sync later.
         const known = loadSyncMeta();
@@ -64,6 +74,7 @@ export function App() {
   const [auth, setAuth] = useAuthState();
 
   if (auth.status === 'checking') return <LoadingScreen />;
+  if (auth.status === 'misconfigured') return <ConfigErrorScreen />;
   if (auth.status === 'anon') return <AuthScreen onSignedIn={(session) => setAuth({ status: 'authed', session })} />;
 
   const session = auth.status === 'authed' ? auth.session : null;
