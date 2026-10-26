@@ -1,9 +1,17 @@
+import { useTheme } from '../lib/theme';
+
 /** Tomato clock logo: white hands in light mode, black hands in dark mode. */
 export function AppLogo({ size }: { size: number }) {
+  const theme = useTheme();
   return (
-    <picture className="shrink-0" aria-hidden="true">
-      <source srcSet="/icon-dark.png" media="(prefers-color-scheme: dark)" />
-      <img src="/icon-light.png" alt="" width={size} height={size} style={{ width: size, height: size }} />
-    </picture>
+    <img
+      src={theme === 'dark' ? '/icon-dark.png' : '/icon-light.png'}
+      alt=""
+      aria-hidden="true"
+      width={size}
+      height={size}
+      className="shrink-0"
+      style={{ width: size, height: size }}
+    />
   );
 }

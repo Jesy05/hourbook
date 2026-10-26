@@ -75,7 +75,7 @@ export function RedeemedForm({ item, onClose }: { item: RedeemedEntry | null; on
           {(p) => <TextInput {...p} value={note} onChange={(e) => setNote(e.target.value)} />}
         </Field>
         {error && (
-          <p className="text-sm font-medium text-tomato sm:col-span-2" role="alert">
+          <p className="text-sm font-medium text-brand sm:col-span-2" role="alert">
             {error}
           </p>
         )}
@@ -108,7 +108,7 @@ export function RedeemedTable({ items, compact = false }: { items: RedeemedEntry
             </thead>
             <tbody>
               {items.map((r) => (
-                <tr key={r.id} className="border-t border-line odd:bg-white even:bg-peach-soft">
+                <tr key={r.id} className="border-t border-line odd:bg-surface even:bg-peach-soft">
                   <td className="px-3 py-2 whitespace-nowrap">{formatRedeemedDate(r.date, r.endDate)}</td>
                   <td className="tabular px-3 py-2 text-right">{formatNumber(r.hours, language)}</td>
                   {!compact && <td className="px-3 py-2 text-muted">{r.note}</td>}

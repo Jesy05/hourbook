@@ -106,7 +106,7 @@ export function ProfileForm({
           />
         </div>
         {errors.modes && (
-          <p className="mt-2 text-xs font-medium text-tomato" role="alert">
+          <p className="mt-2 text-xs font-medium text-brand" role="alert">
             {errors.modes}
           </p>
         )}

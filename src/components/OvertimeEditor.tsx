@@ -96,7 +96,7 @@ export function OvertimeEditor({
               </thead>
               <tbody>
                 {draft.weeks.map((week, i) => (
-                  <tr key={week.id} className="border-t border-line odd:bg-white even:bg-peach-soft">
+                  <tr key={week.id} className="border-t border-line odd:bg-surface even:bg-peach-soft">
                     <td className="px-1 py-1">
                       <CellInput
                         type="date"
@@ -155,7 +155,7 @@ export function OvertimeEditor({
                 <h3 className="bg-coral px-3 py-2 text-sm font-semibold text-ink">{formatMonth(month.month, language)}</h3>
                 <ul>
                   {month.rows.map((row, i) => (
-                    <li key={row.id} className="flex items-center gap-1 border-t border-line px-2 py-1 odd:bg-white even:bg-peach-soft">
+                    <li key={row.id} className="flex items-center gap-1 border-t border-line px-2 py-1 odd:bg-surface even:bg-peach-soft">
                       <span className="w-14 shrink-0 text-xs text-muted">{formatShortDate(row.weekStart)}</span>
                       <DurationCell
                         withSeconds

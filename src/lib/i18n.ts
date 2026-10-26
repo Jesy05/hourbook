@@ -10,6 +10,9 @@ const es = {
   'nav.profile': 'Perfil activo',
   'nav.newProfile': 'Nuevo perfil',
   'nav.skip': 'Saltar al contenido',
+  'nav.theme': 'Tema',
+  'nav.themeLight': 'Modo claro',
+  'nav.themeDark': 'Modo oscuro',
   'storage.failed': 'El navegador no permitió guardar los datos. Revisa si estás en modo privado o si el almacenamiento está bloqueado.',
 
   'common.save': 'Guardar',
@@ -285,6 +288,9 @@ const en: Record<MessageKey, string> = {
   'nav.profile': 'Active profile',
   'nav.newProfile': 'New profile',
   'nav.skip': 'Skip to content',
+  'nav.theme': 'Theme',
+  'nav.themeLight': 'Light mode',
+  'nav.themeDark': 'Dark mode',
   'storage.failed': 'The browser did not allow saving data. Check whether you are in private mode or storage is blocked.',
 
   'common.save': 'Save',

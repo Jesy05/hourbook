@@ -1,9 +1,38 @@
-import { CircleAlert, Clock3, Cloud, CloudOff, FileSpreadsheet, LoaderCircle, Settings, UserPlus } from 'lucide-react';
+import { CircleAlert, Clock3, Cloud, CloudOff, FileSpreadsheet, LoaderCircle, Moon, Settings, Sun, UserPlus } from 'lucide-react';
 import { useId } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AppLogo } from './AppLogo';
 import { useStore } from '../lib/store';
+import { setTheme, useTheme, type Theme } from '../lib/theme';
 import { isTimerActive } from '../lib/timer';
+
+/** Sun and moon side by side; the active one is highlighted. */
+function ThemeToggle({ label, lightLabel, darkLabel }: { label: string; lightLabel: string; darkLabel: string }) {
+  const theme = useTheme();
+  const options: { value: Theme; label: string; Icon: typeof Sun }[] = [
+    { value: 'light', label: lightLabel, Icon: Sun },
+    { value: 'dark', label: darkLabel, Icon: Moon },
+  ];
+  return (
+    <div role="group" aria-label={label} className="flex rounded-xl border border-line bg-canvas p-0.5">
+      {options.map(({ value, label: optionLabel, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={theme === value}
+          aria-label={optionLabel}
+          title={optionLabel}
+          onClick={() => setTheme(value)}
+          className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+            theme === value ? 'bg-peach text-ink shadow-sm' : 'text-muted hover:text-ink'
+          }`}
+        >
+          <Icon size={16} aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function Layout() {
   const { t, data, profile, setActiveProfile, storageOk, account, syncStatus } = useStore();
@@ -24,7 +53,7 @@ export function Layout() {
       >
         {t('nav.skip')}
       </a>
-      <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <NavLink to="/" className="flex items-center gap-2 rounded-lg" aria-label={t('app.name')}>
             <AppLogo size={40} />
@@ -49,6 +78,9 @@ export function Layout() {
                   </NavLink>
                 </li>
               ))}
+              <li className="flex items-center">
+                <ThemeToggle label={t('nav.theme')} lightLabel={t('nav.themeLight')} darkLabel={t('nav.themeDark')} />
+              </li>
             </ul>
           </nav>
 
@@ -65,7 +97,7 @@ export function Layout() {
                   if (e.target.value === '__new') navigate('/setup?new=1');
                   else setActiveProfile(e.target.value);
                 }}
-                className="h-10 max-w-44 rounded-xl border border-line bg-white px-3 text-sm font-semibold focus:border-sky focus:outline-none focus:ring-2 focus:ring-sky/40"
+                className="h-10 max-w-44 rounded-xl border border-line bg-surface px-3 text-sm font-semibold focus:border-sky focus:outline-none focus:ring-2 focus:ring-sky/40"
               >
                 {data.profiles.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -91,7 +123,7 @@ export function Layout() {
       {!storageOk && (
         <div role="alert" className="border-b border-tomato bg-coral-soft">
           <p className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 text-sm text-ink sm:px-6">
-            <CircleAlert size={18} className="shrink-0 text-tomato" aria-hidden="true" />
+            <CircleAlert size={18} className="shrink-0 text-brand" aria-hidden="true" />
             {t('storage.failed')}
           </p>
         </div>
@@ -118,7 +150,7 @@ function SyncBadge({ status, label }: { status: string; label: string }) {
       role="status"
       title={label}
       className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-        status === 'error' || status === 'offline' ? 'bg-coral-soft text-tomato' : 'text-muted'
+        status === 'error' || status === 'offline' ? 'bg-coral-soft text-brand' : 'text-muted'
       }`}
     >
       {icon}

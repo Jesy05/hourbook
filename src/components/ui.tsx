@@ -18,7 +18,7 @@ const variants: Record<Variant, string> = {
   secondary: 'bg-coral text-ink hover:brightness-95 shadow-sm',
   info: 'bg-sky text-ink hover:brightness-95 shadow-sm',
   ghost: 'bg-transparent text-ink hover:bg-peach-soft border border-line',
-  danger: 'bg-white text-tomato border border-tomato hover:bg-tomato hover:text-white',
+  danger: 'bg-surface text-brand border border-tomato hover:bg-tomato hover:text-white',
 };
 
 export function Button({
@@ -71,12 +71,12 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] sm:p-6 ${className}`}>
+    <section className={`rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] sm:p-6 ${className}`}>
       {(title || actions) && (
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           {title && (
             <h2 className="flex items-center gap-2 text-lg font-semibold text-ink">
-              {icon && <span className="text-tomato" aria-hidden="true">{icon}</span>}
+              {icon && <span className="text-brand" aria-hidden="true">{icon}</span>}
               {title}
             </h2>
           )}
@@ -89,7 +89,7 @@ export function Card({
 }
 
 const inputClass =
-  'w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-ink placeholder:text-muted/80 focus:border-sky focus:outline-none focus:ring-2 focus:ring-sky/40 disabled:bg-canvas';
+  'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted/80 focus:border-sky focus:outline-none focus:ring-2 focus:ring-sky/40 disabled:bg-canvas';
 
 export function Field({
   label,
@@ -120,7 +120,7 @@ export function Field({
         </p>
       )}
       {error && (
-        <p id={errorId} className="text-xs font-medium text-tomato" role="alert">
+        <p id={errorId} className="text-xs font-medium text-brand" role="alert">
           {error}
         </p>
       )}
@@ -144,7 +144,7 @@ export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSe
 export function CellInput({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-ink hover:border-line focus:border-sky focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky/40 ${className}`}
+      className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-ink hover:border-line focus:border-sky focus:bg-surface focus:outline-none focus:ring-2 focus:ring-sky/40 ${className}`}
       {...props}
     />
   );
@@ -166,7 +166,7 @@ export function Toggle({
     <label
       htmlFor={id}
       className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-        checked ? 'border-coral bg-peach-soft' : 'border-line bg-white hover:bg-canvas'
+        checked ? 'border-coral bg-peach-soft' : 'border-line bg-surface hover:bg-canvas'
       }`}
     >
       <input
@@ -247,7 +247,7 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-4" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onMouseDown={onClose}>
       <div
         ref={ref}
         role="dialog"
@@ -255,7 +255,7 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}
+        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-surface shadow-xl sm:rounded-2xl ${size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}
       >
         <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
           <h2 id={titleId} className="text-lg font-semibold">
@@ -328,7 +328,7 @@ export function StatCard({
   icon?: ReactNode;
 }) {
   const tones = {
-    white: 'bg-white border-line',
+    white: 'bg-surface border-line',
     peach: 'bg-peach-soft border-peach',
     sky: 'bg-sky-soft border-sky/60',
     coral: 'bg-coral-soft border-coral/50',
