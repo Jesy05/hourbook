@@ -135,7 +135,7 @@ function EntryFormInner({ entry, defaultDate, onClose }: { entry: Entry | null; 
     >
       {overlap ? (
         <div className="flex gap-3 rounded-xl border border-peach bg-peach-soft p-4 text-sm" role="alert">
-          <TriangleAlert size={20} className="shrink-0 text-tomato" aria-hidden="true" />
+          <TriangleAlert size={20} className="shrink-0 text-brand" aria-hidden="true" />
           <div>
             <p className="font-semibold">{t('entries.overlapTitle')}</p>
             <p className="mt-1">{t('entries.overlapBody', { count: overlap.list.split(', ').length, list: overlap.list })}</p>
@@ -153,7 +153,7 @@ function EntryFormInner({ entry, defaultDate, onClose }: { entry: Entry | null; 
                 <label
                   key={m}
                   className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-center text-sm font-semibold transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sky ${
-                    mode === m ? 'bg-white text-ink shadow-sm' : 'text-muted'
+                    mode === m ? 'bg-surface text-ink shadow-sm' : 'text-muted'
                   }`}
                 >
                   <input
@@ -207,7 +207,7 @@ function EntryFormInner({ entry, defaultDate, onClose }: { entry: Entry | null; 
             )}
           </Field>
           {error && (
-            <p className="text-sm font-medium text-tomato sm:col-span-2" role="alert">
+            <p className="text-sm font-medium text-brand sm:col-span-2" role="alert">
               {error}
             </p>
           )}

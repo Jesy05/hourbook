@@ -101,7 +101,7 @@ export function Settings() {
 
       <Card title={t('settings.data')} icon={<Database size={20} />}>
         <p className="mb-4 flex items-start gap-2 rounded-xl border border-peach bg-peach-soft p-3 text-sm text-ink">
-          <TriangleAlert size={18} className="mt-0.5 shrink-0 text-tomato" aria-hidden="true" />
+          <TriangleAlert size={18} className="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
           {account ? t('settings.dataWarningSynced') : t('settings.dataWarning')}
         </p>
         <div className="flex flex-wrap gap-2">

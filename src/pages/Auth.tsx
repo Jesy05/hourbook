@@ -21,7 +21,7 @@ export function LoadingScreen() {
     <div className="flex min-h-screen items-center justify-center bg-canvas" role="status" aria-live="polite">
       <div className="flex flex-col items-center gap-3 text-muted">
         <AppLogo size={64} />
-        <LoaderCircle size={22} className="animate-spin text-tomato" aria-hidden="true" />
+        <LoaderCircle size={22} className="animate-spin text-brand" aria-hidden="true" />
         <span className="sr-only">Loading</span>
       </div>
     </div>
@@ -75,7 +75,7 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: (session: Session) => v
           </Button>
         </div>
 
-        <section className="rounded-2xl border border-line bg-white p-6 shadow-[var(--shadow-card)]" aria-labelledby="auth-title">
+        <section className="rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-card)]" aria-labelledby="auth-title">
           <div className="mb-5 grid grid-cols-2 rounded-xl border border-line bg-canvas p-1" role="tablist">
             {(['login', 'register'] as const).map((m) => (
               <button
@@ -88,7 +88,7 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: (session: Session) => v
                   setError('');
                 }}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  mode === m ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'
+                  mode === m ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
                 }`}
               >
                 {m === 'login' ? t('auth.login') : t('auth.register')}

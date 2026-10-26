@@ -71,7 +71,7 @@ export function Reports() {
       {types.length === 0 ? (
         <EmptyState icon={<FileSpreadsheet size={28} />}>
           <span>{t('reports.noModes')}</span>
-          <Link to="/settings" className="font-semibold text-tomato underline">
+          <Link to="/settings" className="font-semibold text-brand underline">
             {t('nav.settings')}
           </Link>
         </EmptyState>
@@ -134,7 +134,7 @@ export function Reports() {
         ) : (
           <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-xl border border-line">
             {drafts.map((draft) => (
-              <li key={draft.id} className="flex flex-wrap items-center gap-3 px-4 py-3 odd:bg-white even:bg-peach-soft">
+              <li key={draft.id} className="flex flex-wrap items-center gap-3 px-4 py-3 odd:bg-surface even:bg-peach-soft">
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                     draft.type === 'invoice' ? 'bg-peach text-ink' : 'bg-sky-soft text-ink'
@@ -144,7 +144,7 @@ export function Reports() {
                   {draft.type === 'invoice' ? <Receipt size={20} /> : <TrendingUp size={20} />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <Link to={`/reports/${draft.id}`} className="block truncate font-semibold hover:text-tomato hover:underline">
+                  <Link to={`/reports/${draft.id}`} className="block truncate font-semibold hover:text-brand hover:underline">
                     {draftTitle(draft, t, language)}
                   </Link>
                   <p className="text-xs text-muted">

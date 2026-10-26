@@ -102,7 +102,7 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
             </thead>
             <tbody>
               {draft.lines.map((line, i) => (
-                <tr key={line.id} className="border-t border-line odd:bg-white even:bg-peach-soft">
+                <tr key={line.id} className="border-t border-line odd:bg-surface even:bg-peach-soft">
                   <td className="px-1 py-1">
                     <CellInput
                       aria-label={`${t('common.description')} ${i + 1}`}
@@ -213,7 +213,7 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
             </thead>
             <tbody>
               {draft.timesheet.map((row, i) => (
-                <tr key={row.id} className="border-t border-line odd:bg-white even:bg-peach-soft">
+                <tr key={row.id} className="border-t border-line odd:bg-surface even:bg-peach-soft">
                   <td className="px-1 py-1">
                     <CellInput type="date" aria-label={`${t('common.date')} ${i + 1}`} value={row.date} onChange={(e) => setRow(row.id, { date: e.target.value })} />
                   </td>

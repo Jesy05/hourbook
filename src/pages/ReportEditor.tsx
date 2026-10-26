@@ -26,7 +26,7 @@ export function ReportEditor() {
   if (!profile || !draft) {
     return (
       <div className="flex flex-col gap-4">
-        <Link to="/reports" className="inline-flex items-center gap-2 text-sm font-semibold text-tomato hover:underline">
+        <Link to="/reports" className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:underline">
           <ArrowLeft size={16} aria-hidden="true" />
           {t('reports.title')}
         </Link>
@@ -74,7 +74,7 @@ export function ReportEditor() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
-        <Link to="/reports" className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-tomato hover:underline">
+        <Link to="/reports" className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-brand hover:underline">
           <ArrowLeft size={16} aria-hidden="true" />
           {t('reports.title')}
         </Link>

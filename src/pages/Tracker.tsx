@@ -165,7 +165,7 @@ export function Tracker() {
               {dayEntries.map((entry) => {
                 const desc = entry.description || t('common.none');
                 return (
-                  <li key={entry.id} className="flex items-center gap-3 px-3 py-3 odd:bg-white even:bg-peach-soft sm:px-4">
+                  <li key={entry.id} className="flex items-center gap-3 px-3 py-3 odd:bg-surface even:bg-peach-soft sm:px-4">
                     <div className="min-w-0 flex-1">
                       <p
                         title={entry.description || undefined}
@@ -231,7 +231,7 @@ export function Tracker() {
                     }`}
                     aria-label={`${formatDay(d.date, language)}: ${formatDuration(d.seconds)}`}
                   >
-                    <span className={`truncate ${d.date === today ? 'font-semibold text-tomato' : 'text-muted'}`}>
+                    <span className={`truncate ${d.date === today ? 'font-semibold text-brand' : 'text-muted'}`}>
                       {formatDay(d.date, language)}
                     </span>
                     <span className="h-3 overflow-hidden rounded-full bg-canvas" aria-hidden="true">

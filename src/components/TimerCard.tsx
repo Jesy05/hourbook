@@ -58,13 +58,13 @@ export function TimerCard() {
     <section
       aria-labelledby="timer-heading"
       className={`overflow-hidden rounded-3xl border shadow-[var(--shadow-card)] transition ${
-        running ? 'border-tomato bg-tomato text-white' : 'border-line bg-white text-ink'
+        running ? 'border-tomato bg-tomato text-white' : 'border-line bg-surface text-ink'
       }`}
     >
       <div className="flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-1">
           <h2 id="timer-heading" className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
-            <Timer size={18} aria-hidden="true" className={running ? 'text-peach' : 'text-tomato'} />
+            <Timer size={18} aria-hidden="true" className={running ? 'text-peach' : 'text-brand'} />
             {t('timer.title')}
             <span
               role="status"
