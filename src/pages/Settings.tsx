@@ -87,8 +87,14 @@ export function Settings() {
           initial={profile}
           submitLabel={t('common.save')}
           onSubmit={(next) => {
-            saveProfile(next);
+            // The form does not edit the Excel colors: keep them as they are now,
+            // in case they changed after the form was opened.
+            saveProfile({ ...next, excelPalette: profile.excelPalette, customPalette: profile.customPalette });
             toast(t('settings.saved'));
+          }}
+          onCategoriesChange={(categories) => {
+            saveProfile({ ...profile, categories });
+            toast(t('settings.categoriesSaved'));
           }}
           extraActions={
             <Button variant="danger" onClick={() => setConfirmProfile(true)}>

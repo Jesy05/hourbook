@@ -12,11 +12,14 @@ export function ProfileForm({
   initial,
   submitLabel,
   onSubmit,
+  onCategoriesChange,
   extraActions,
 }: {
   initial: Profile;
   submitLabel: string;
   onSubmit: (profile: Profile) => void;
+  /** When set, category changes are saved right away instead of waiting for the submit button. */
+  onCategoriesChange?: (categories: string[]) => void;
   extraActions?: ReactNode;
 }) {
   const { t } = useStore();
@@ -40,6 +43,11 @@ export function ProfileForm({
     return Number.isFinite(n) ? n : fallback;
   };
 
+  const setCategories = (categories: string[]) => {
+    set('categories', categories);
+    onCategoriesChange?.(categories);
+  };
+
   const addCategory = () => {
     const name = newCategory.trim();
     if (!name) return;
@@ -47,7 +55,7 @@ export function ProfileForm({
       setCategoryError(t('profile.categoryExists'));
       return;
     }
-    set('categories', [...profile.categories, name]);
+    setCategories([...profile.categories, name]);
     setNewCategory('');
     setCategoryError('');
   };
@@ -256,7 +264,7 @@ export function ProfileForm({
               <IconButton
                 label={t('profile.removeCategory', { name: category })}
                 className="h-7 w-7"
-                onClick={() => set('categories', profile.categories.filter((c) => c !== category))}
+                onClick={() => setCategories(profile.categories.filter((c) => c !== category))}
               >
                 <X size={14} aria-hidden="true" />
               </IconButton>
