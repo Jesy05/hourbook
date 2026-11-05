@@ -2,6 +2,7 @@ import { Database, Download, Languages, LogOut, Trash2, TriangleAlert, Upload, U
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EntryFieldsSettings } from '../components/EntryFields';
+import { InvoiceSettingsCard } from '../components/InvoiceSettings';
 import { ProfileForm } from '../components/ProfileForm';
 import { useToast } from '../components/Toast';
 import { Button, Card, ConfirmDialog, Field, TextInput } from '../components/ui';
@@ -81,6 +82,8 @@ export function Settings() {
 
       <EntryFieldsSettings />
 
+      {profile.invoiceMode && <InvoiceSettingsCard />}
+
       <section aria-labelledby="profile-heading" className="flex flex-col gap-4">
         <h2 id="profile-heading" className="text-xl font-semibold">
           {t('settings.profile')}: {profile.name}
@@ -88,11 +91,19 @@ export function Settings() {
         <ProfileForm
           key={profile.id}
           initial={profile}
+          showInvoice={false}
           submitLabel={t('common.save')}
           onSubmit={(next) => {
-            // The form does not edit the Excel colors: keep them as they are now,
-            // in case they changed after the form was opened.
-            saveProfile({ ...next, excelPalette: profile.excelPalette, customPalette: profile.customPalette });
+            // Other settings (invoice, fields, categories, colors) save on their own as you
+            // edit them, so only the fields this form owns are taken from it.
+            saveProfile({
+              ...profile,
+              name: next.name,
+              timeZone: next.timeZone,
+              invoiceMode: next.invoiceMode,
+              overtimeMode: next.overtimeMode,
+              overtime: next.overtime,
+            });
             toast(t('settings.saved'));
           }}
           onCategoriesChange={(categories) => {

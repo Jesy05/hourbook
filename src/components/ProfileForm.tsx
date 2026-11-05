@@ -4,7 +4,7 @@ import type { MessageKey } from '../lib/i18n';
 import { useStore } from '../lib/store';
 import { timeZoneList } from '../lib/tz';
 import type { Profile, WeekDay } from '../lib/types';
-import { Button, Card, Field, IconButton, Select, TextArea, TextInput, Toggle } from './ui';
+import { Button, Card, Field, IconButton, Select, TextInput, Toggle } from './ui';
 
 const CURRENCIES = ['USD', 'EUR', 'NIO', 'MXN', 'CAD', 'GBP'];
 
@@ -14,6 +14,7 @@ export function ProfileForm({
   onSubmit,
   onCategoriesChange,
   extraActions,
+  showInvoice = true,
 }: {
   initial: Profile;
   submitLabel: string;
@@ -21,6 +22,8 @@ export function ProfileForm({
   /** When set, category changes are saved right away instead of waiting for the submit button. */
   onCategoriesChange?: (categories: string[]) => void;
   extraActions?: ReactNode;
+  /** Settings has its own invoice card, so it hides this one. */
+  showInvoice?: boolean;
 }) {
   const { t } = useStore();
   const [profile, setProfile] = useState<Profile>(initial);
@@ -120,7 +123,7 @@ export function ProfileForm({
         )}
       </Card>
 
-      {profile.invoiceMode && (
+      {profile.invoiceMode && showInvoice && (
         <Card title={t('profile.invoiceMode')} icon={<Receipt size={20} />}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('profile.rate')}>
@@ -164,36 +167,7 @@ export function ProfileForm({
                 />
               )}
             </Field>
-            <Field label={t('profile.contact')} hint={t('profile.contactHint')} className="sm:col-span-2">
-              {(p) => <TextArea {...p} value={profile.contact} onChange={(e) => set('contact', e.target.value)} rows={2} />}
-            </Field>
-            <Field label={t('profile.billTo')} className="sm:col-span-2">
-              {(p) => <TextInput {...p} value={profile.invoice.billTo} onChange={(e) => setInvoice('billTo', e.target.value)} />}
-            </Field>
-            <Field label={t('profile.apEmail')}>
-              {(p) => (
-                <TextInput {...p} type="email" value={profile.invoice.apEmail} onChange={(e) => setInvoice('apEmail', e.target.value)} />
-              )}
-            </Field>
-            <Field label={`${t('profile.ccEmail')} (${t('common.optional')})`}>
-              {(p) => (
-                <TextInput {...p} type="email" value={profile.invoice.ccEmail} onChange={(e) => setInvoice('ccEmail', e.target.value)} />
-              )}
-            </Field>
-            <Field
-              label={`${t('profile.paymentDetails')} (${t('common.optional')})`}
-              hint={t('profile.paymentDetailsHint')}
-              className="sm:col-span-2"
-            >
-              {(p) => (
-                <TextArea
-                  {...p}
-                  value={profile.invoice.paymentDetails}
-                  onChange={(e) => setInvoice('paymentDetails', e.target.value)}
-                  rows={3}
-                />
-              )}
-            </Field>
+            <p className="text-sm text-muted sm:col-span-2">{t('profile.invoiceMoreInSettings')}</p>
           </div>
         </Card>
       )}
