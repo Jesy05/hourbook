@@ -19,7 +19,20 @@ The interface is in Spanish by default, with an English option in Settings.
 
 ## Entry fields
 
-Settings > **Entry fields** turns Category, Requested by and Project on or off, and manages custom fields. Requested by and Project are pickers with a saved list per profile: choose a saved value or pick "+ New..." and type one, and it is added to the list when the entry is saved. The fields appear in the timer, the manual entry form, the entry list and the invoice timesheet, and can be used in invoice descriptions, columns and grouping. Overtime mode works as before; the fields are optional there too.
+Settings > **Entry fields** turns Category, Requested by and Project on or off, and manages custom fields. Requested by and Project start on for profiles in invoice mode, because invoice lines such as `{date} | {requestedBy} - {project} | {hours} hours` use them.
+
+Requested by and Project use a searchable picker with a saved list per profile:
+
+- Type to filter; pick with the mouse or with the arrow keys and Enter. Escape closes the list, and the X button clears the value.
+- A value that is not saved yet shows as **Add "..."** and is saved to the list. Values typed on an entry are also saved when the entry is saved.
+- Case and extra spaces are ignored, so "naima", "Naima" and "Naima " are one value, stored with the saved spelling.
+- Pinned values come first, then the most recently used, then A-Z.
+
+They appear in the timer (next to Category; the last values stay set for the next task), the manual entry and edit forms, the entry list (as small chips) and the invoice timesheet.
+
+Under each saved list in Settings you can pin favorites and reorder them, rename a value (after a confirmation it changes every entry, the timer and draft timesheets; renaming onto an existing value merges the two), and remove a value from the suggestions (entries keep it; Undo is offered).
+
+The saved lists, pins and every entry's values are included in the JSON backup export and import. Schema v3 turns the two fields on for existing invoice profiles and adds values already used in entries to the lists; entries without them stay empty.
 
 ## Invoices
 
@@ -49,7 +62,11 @@ When editing an invoice, **Invoice layout** controls:
 - **Sections** to show: From, Bill to, terms and due date, payment instructions, notes, and the timesheet sheet.
 - **Other charges**: extra lines with quantity and unit price, such as reimbursable expenses.
 
-Save the layout as a template ("Monthly - by day"), update it, make it the default or delete it. Every profile starts with "Por categoría" and "Mensual - por día".
+Save the layout as a template ("Monthly - by day"), update it, make it the default or delete it. Every profile starts with "By category" and "Monthly - by day" (named in the interface language until renamed).
+
+### Timesheet
+
+The invoice timesheet edits the real entries: date, times, hours, Requested by, Project, category, description and custom fields. To fill many rows at once, tick their checkboxes and set Requested by or Project for all of them. If the layout groups by or prints `{requestedBy}` or `{project}` and some rows are empty, a warning lists their dates, with a button that selects those rows for bulk fill. The export is never blocked.
 
 ### Hours accuracy
 
@@ -134,7 +151,8 @@ src/
     tz.ts          time zone helpers based on Intl
     invoice/       invoice logic: hours, grouping, templates, terms, money, totals, file names, document model
     pdf/           PDF invoice export
-    migrate.ts     upgrades stored data to the current schema (v2)
+    migrate.ts     upgrades stored data to the current schema (v3)
+    fieldValues.ts saved Requested by / Project values: matching, order, rename, pins
   components/      shared UI, timer, forms, settings and report editors
   pages/           Tracker, Reports, Report editor, Settings, Setup, Auth
 api/               Vercel functions: auth (register, login, logout, me) and data sync
