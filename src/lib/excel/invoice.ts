@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { format, parseISO } from 'date-fns';
 import { lineAmount, round2, timeToSeconds } from '../calc';
 import { invoiceDraftTotals } from '../drafts';
-import { formatMonthEnglish, safeFileName } from '../format';
+import { formatPeriodEnglish, isFullMonth, safeFileName } from '../format';
 import { normalizePalette } from '../palettes';
 import type { InvoiceDraft } from '../types';
 import {
@@ -26,7 +26,10 @@ import {
 /* Monthly invoice: an "Invoice" sheet plus a "Timesheet" sheet with every entry. */
 
 export function invoiceFileName(draft: InvoiceDraft): string {
-  return `${safeFileName(draft.fromName)}_Invoice_${draft.periodStart.slice(0, 7)}.xlsx`;
+  const period = isFullMonth(draft.periodStart, draft.periodEnd)
+    ? draft.periodStart.slice(0, 7)
+    : `${draft.periodStart}_to_${draft.periodEnd}`;
+  return `${safeFileName(draft.fromName)}_Invoice_${period}.xlsx`;
 }
 
 function periodText(draft: InvoiceDraft): string {
@@ -41,7 +44,7 @@ export function buildInvoiceWorkbook(draft: InvoiceDraft): ExcelJS.Workbook {
   wb.creator = 'Hourbook';
   wb.created = new Date();
   const money = currencyFormat(draft.currency);
-  const month = formatMonthEnglish(draft.periodStart.slice(0, 7));
+  const month = formatPeriodEnglish(draft.periodStart, draft.periodEnd);
 
   /* ---------- Invoice sheet ---------- */
   const ws = wb.addWorksheet('Invoice', {

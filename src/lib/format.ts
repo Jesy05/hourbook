@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { endOfMonth, format, parseISO } from 'date-fns';
 import { enUS, es } from 'date-fns/locale';
 import { locale } from './i18n';
 import type { Language } from './types';
@@ -28,9 +28,35 @@ export function formatMonth(month: string, language: Language): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** English month and year, used in the invoice and email which go to the client. */
-export function formatMonthEnglish(month: string): string {
-  return format(parseISO(`${month}-01`), 'MMMM yyyy');
+/** True when the range is exactly one calendar month, first day to last day. */
+export function isFullMonth(start: string, end: string): boolean {
+  const first = parseISO(start);
+  return start.slice(8) === '01' && end === format(endOfMonth(first), 'yyyy-MM-dd');
+}
+
+/**
+ * Billing period in English for the invoice and email: "October 2026" for a
+ * whole month, otherwise "October 5 - 18, 2026", "October 25 - November 7, 2026"
+ * or "December 20, 2026 - January 3, 2027".
+ */
+export function formatPeriodEnglish(start: string, end: string): string {
+  if (isFullMonth(start, end)) return format(parseISO(start), 'MMMM yyyy');
+  const a = parseISO(start);
+  const b = parseISO(end);
+  if (start === end) return format(a, 'MMMM d, yyyy');
+  if (start.slice(0, 7) === end.slice(0, 7)) return `${format(a, 'MMMM d')} - ${format(b, 'd, yyyy')}`;
+  if (start.slice(0, 4) === end.slice(0, 4)) return `${format(a, 'MMMM d')} - ${format(b, 'MMMM d, yyyy')}`;
+  return `${format(a, 'MMMM d, yyyy')} - ${format(b, 'MMMM d, yyyy')}`;
+}
+
+/** Same idea in the interface language: "Octubre 2026" or "5 oct - 18 oct 2026". */
+export function formatPeriod(start: string, end: string, language: Language): string {
+  if (isFullMonth(start, end)) return formatMonth(start.slice(0, 7), language);
+  const locale = dateLocale(language);
+  const day = language === 'es' ? 'd MMM' : 'MMM d';
+  const full = language === 'es' ? 'd MMM yyyy' : 'MMM d, yyyy';
+  const sameYear = start.slice(0, 4) === end.slice(0, 4);
+  return `${format(parseISO(start), sameYear ? day : full, { locale })} - ${format(parseISO(end), full, { locale })}`;
 }
 
 /** "4-12 Jun", "30 May-2 Jun" or "26-Feb". */

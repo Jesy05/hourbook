@@ -3,8 +3,8 @@ import { FilePlus2, FileSpreadsheet, FolderOpen, Receipt, Trash2, TrendingUp } f
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, ConfirmDialog, EmptyState, Field, IconButton, Select, TextInput } from '../components/ui';
-import { generateInvoiceDraft, generateOvertimeDraft } from '../lib/drafts';
-import { dateLocale, formatMonth } from '../lib/format';
+import { generateInvoiceDraft, generateOvertimeDraft, monthRange } from '../lib/drafts';
+import { dateLocale, formatPeriod } from '../lib/format';
 import type { MessageKey } from '../lib/i18n';
 import { useStore } from '../lib/store';
 import { todayIn } from '../lib/tz';
@@ -12,7 +12,7 @@ import type { Draft, Language } from '../lib/types';
 
 export function draftTitle(draft: Draft, t: (key: MessageKey) => string, language: Language): string {
   if (draft.type === 'invoice') {
-    return `${t('reports.invoice')} ${draft.invoiceNumber} - ${formatMonth(draft.periodStart.slice(0, 7), language)}`;
+    return `${t('reports.invoice')} ${draft.invoiceNumber} - ${formatPeriod(draft.periodStart, draft.periodEnd, language)}`;
   }
   return `${t('reports.overtime')} - ${draftPeriod(draft, language)}`;
 }
@@ -32,6 +32,10 @@ export function Reports() {
   const [periodMode, setPeriodMode] = useState<'ytd' | 'custom'>('ytd');
   const [from, setFrom] = useState(`${today.slice(0, 4)}-01-01`);
   const [to, setTo] = useState(today);
+  const [invoicePeriod, setInvoicePeriod] = useState<'month' | 'range'>('month');
+  const [invoiceFrom, setInvoiceFrom] = useState(`${today.slice(0, 7)}-01`);
+  const [invoiceTo, setInvoiceTo] = useState(today);
+  const [rangeError, setRangeError] = useState('');
   const [deleting, setDeleting] = useState<Draft | null>(null);
 
   if (!profile) return null;
@@ -49,14 +53,22 @@ export function Reports() {
     event.preventDefault();
     let draft: Draft;
     if (activeType === 'invoice') {
-      if (!month) return;
-      draft = generateInvoiceDraft(profile, data.entries, month, today);
+      const range = invoicePeriod === 'month' ? (month ? monthRange(month) : null) : { start: invoiceFrom, end: invoiceTo };
+      if (!range || !range.start || !range.end || range.end < range.start) {
+        setRangeError(t('reports.rangeInvalid'));
+        return;
+      }
+      draft = generateInvoiceDraft(profile, data.entries, range.start, range.end, today);
     } else {
       const start = periodMode === 'ytd' ? `${today.slice(0, 4)}-01-01` : from;
       const end = periodMode === 'ytd' ? today : to;
-      if (!start || !end || end < start) return;
+      if (!start || !end || end < start) {
+        setRangeError(t('reports.rangeInvalid'));
+        return;
+      }
       draft = generateOvertimeDraft(profile, data.entries, start, end);
     }
+    setRangeError('');
     saveDraft(draft);
     navigate(`/reports/${draft.id}`);
   };
@@ -92,9 +104,28 @@ export function Reports() {
               </Field>
 
               {activeType === 'invoice' ? (
-                <Field label={t('reports.month')}>
-                  {(p) => <TextInput {...p} type="month" value={month} onChange={(e) => setMonth(e.target.value)} required />}
-                </Field>
+                <>
+                  <Field label={t('reports.periodMode')}>
+                    {(p) => (
+                      <Select
+                        {...p}
+                        value={invoicePeriod}
+                        onChange={(e) => {
+                          setInvoicePeriod(e.target.value as 'month' | 'range');
+                          setRangeError('');
+                        }}
+                      >
+                        <option value="month">{t('reports.fullMonth')}</option>
+                        <option value="range">{t('reports.dateRange')}</option>
+                      </Select>
+                    )}
+                  </Field>
+                  {invoicePeriod === 'month' && (
+                    <Field label={t('reports.month')}>
+                      {(p) => <TextInput {...p} type="month" value={month} onChange={(e) => setMonth(e.target.value)} required />}
+                    </Field>
+                  )}
+                </>
               ) : (
                 <Field label={t('reports.periodMode')}>
                   {(p) => (
@@ -107,6 +138,41 @@ export function Reports() {
               )}
             </div>
 
+            {activeType === 'invoice' && invoicePeriod === 'range' && (
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <Field label={t('reports.from')}>
+                  {(p) => (
+                    <TextInput
+                      {...p}
+                      type="date"
+                      value={invoiceFrom}
+                      max={invoiceTo}
+                      onChange={(e) => {
+                        setInvoiceFrom(e.target.value);
+                        setRangeError('');
+                      }}
+                      required
+                    />
+                  )}
+                </Field>
+                <Field label={t('reports.to')}>
+                  {(p) => (
+                    <TextInput
+                      {...p}
+                      type="date"
+                      value={invoiceTo}
+                      min={invoiceFrom}
+                      onChange={(e) => {
+                        setInvoiceTo(e.target.value);
+                        setRangeError('');
+                      }}
+                      required
+                    />
+                  )}
+                </Field>
+              </div>
+            )}
+
             {activeType === 'overtime' && periodMode === 'custom' && (
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                 <Field label={t('reports.from')}>
@@ -116,6 +182,12 @@ export function Reports() {
                   {(p) => <TextInput {...p} type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} required />}
                 </Field>
               </div>
+            )}
+
+            {rangeError && (
+              <p className="text-sm font-medium text-brand" role="alert">
+                {rangeError}
+              </p>
             )}
 
             <div>

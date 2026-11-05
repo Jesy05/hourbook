@@ -29,17 +29,17 @@ function inRange(date: string, start: string, end: string): boolean {
 export function generateInvoiceDraft(
   profile: Profile,
   entries: Entry[],
-  month: string,
+  start: string,
+  end: string,
   today: string,
   existing?: InvoiceDraft,
 ): InvoiceDraft {
-  const { start, end } = monthRange(month);
-  const monthEntries = entries
+  const periodEntries = entries
     .filter((e) => e.profileId === profile.id && inRange(e.date, start, end))
     .sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? '').localeCompare(b.start ?? ''));
   const now = Date.now();
   const rate = profile.invoice.rate;
-  const lines = categoryTotals(monthEntries).map((c) => ({
+  const lines = categoryTotals(periodEntries).map((c) => ({
     id: newId(),
     description: c.category,
     hours: secondsToDecimalHours(c.seconds),
@@ -63,7 +63,7 @@ export function generateInvoiceDraft(
     currency: profile.invoice.currency,
     paymentDetails: profile.invoice.paymentDetails,
     lines: lines.length ? lines : [{ id: newId(), description: profile.categories[0] ?? 'Services', hours: 0, rate }],
-    timesheet: monthEntries.map((e) => ({
+    timesheet: periodEntries.map((e) => ({
       id: newId(),
       date: e.date,
       start: e.start ?? '',
@@ -87,7 +87,7 @@ export function generateOvertimeDraft(
   // Weeks that touch the range are counted whole, so the first week is not cut short.
   const firstWeek = weekStartOf(start, wso);
   const weekEntries = own.filter((e) => e.date >= firstWeek && e.date <= end);
-  const monthEntries = own.filter((e) => inRange(e.date, start, end));
+  const periodEntries = own.filter((e) => inRange(e.date, start, end));
   const now = Date.now();
   return {
     id: existing?.id ?? newId(),
@@ -107,7 +107,7 @@ export function generateOvertimeDraft(
       weekStart: w.weekStart,
       workedSeconds: w.seconds,
     })),
-    months: monthlyWeekBlocks(monthEntries, wso).map((m) => ({
+    months: monthlyWeekBlocks(periodEntries, wso).map((m) => ({
       id: newId(),
       month: m.month,
       rows: m.weeks.map((w) => ({ id: newId(), weekStart: w.weekStart, seconds: w.seconds })),

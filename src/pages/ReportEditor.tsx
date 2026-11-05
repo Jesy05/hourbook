@@ -50,7 +50,7 @@ export function ReportEditor() {
   const regenerate = () => {
     const next =
       draft.type === 'invoice'
-        ? generateInvoiceDraft(profile, data.entries, draft.periodStart.slice(0, 7), todayIn(profile.timeZone), draft)
+        ? generateInvoiceDraft(profile, data.entries, draft.periodStart, draft.periodEnd, todayIn(profile.timeZone), draft)
         : generateOvertimeDraft(profile, data.entries, draft.periodStart, draft.periodEnd, draft);
     saveDraft(next);
     setConfirmRegen(false);

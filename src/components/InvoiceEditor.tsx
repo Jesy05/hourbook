@@ -2,7 +2,7 @@ import { Copy, FileText, ListOrdered, Mail, Plus, Sheet, Trash2 } from 'lucide-r
 import { lineAmount } from '../lib/calc';
 import { newId } from '../lib/defaults';
 import { invoiceDraftTotals } from '../lib/drafts';
-import { formatMoney, formatMoneyEnglish, formatMonthEnglish, formatNumber, shortTime } from '../lib/format';
+import { formatMoney, formatMoneyEnglish, formatNumber, formatPeriodEnglish, shortTime } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { InvoiceDraft, InvoiceLine, TimesheetRow } from '../lib/types';
 import { NumberCell } from './cells';
@@ -11,7 +11,7 @@ import { Button, Card, CellInput, Field, IconButton, TextArea, TextInput } from 
 
 export function invoiceEmail(draft: InvoiceDraft) {
   const totals = invoiceDraftTotals(draft);
-  const month = formatMonthEnglish(draft.periodStart.slice(0, 7));
+  const month = formatPeriodEnglish(draft.periodStart, draft.periodEnd);
   const hours = totals.hours.toFixed(2);
   const amount = formatMoneyEnglish(totals.amount, draft.currency);
   const firstName = draft.fromName.split(' ')[0] ?? draft.fromName;
