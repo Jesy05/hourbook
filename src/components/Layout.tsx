@@ -68,12 +68,12 @@ export function Layout() {
                     to={to}
                     end={end}
                     className={({ isActive }) =>
-                      `flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                      `flex items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition sm:px-3 ${
                         isActive ? 'bg-peach text-ink' : 'text-muted hover:bg-peach-soft hover:text-ink'
                       }`
                     }
                   >
-                    <Icon size={18} aria-hidden="true" />
+                    <Icon size={18} aria-hidden="true" className="hidden sm:block" />
                     {label}
                   </NavLink>
                 </li>
