@@ -61,11 +61,20 @@ const SEPARATOR = /[-|,/:·–—]/;
  */
 function tidy(text: string): string {
   let out = text;
-  const after = new RegExp(`${EMPTY}\\s*${SEPARATOR.source}\\s*`);
-  const before = new RegExp(`\\s*${SEPARATOR.source}\\s*${EMPTY}`);
+  // When an empty value sits between two separators, keep the stronger one:
+  // "Naima - {project} | 4.18" -> "Naima | 4.18", "| {requestedBy} - NYC" -> "| NYC".
+  const strength = (sep: string) => (sep === '|' ? 3 : sep === ',' || sep === ':' || sep === '/' ? 2 : 1);
+  const before = new RegExp(`\\s*(${SEPARATOR.source})\\s*${EMPTY}`);
+  const after = new RegExp(`${EMPTY}\\s*(${SEPARATOR.source})\\s*`);
   while (out.includes(EMPTY)) {
-    if (after.test(out)) out = out.replace(after, '');
-    else if (before.test(out)) out = out.replace(before, '');
+    const b = before.exec(out);
+    const a = after.exec(out);
+    const bHere = b && b.index + b[0].length === out.indexOf(EMPTY) + 1;
+    const aHere = a && a.index === out.indexOf(EMPTY);
+    if (bHere && aHere) {
+      out = strength(b![1]) > strength(a![1]) ? out.replace(after, ' ') : out.replace(before, ' ');
+    } else if (aHere) out = out.replace(after, '');
+    else if (bHere) out = out.replace(before, '');
     else out = out.replace(EMPTY, '');
   }
   return out
