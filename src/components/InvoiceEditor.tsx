@@ -8,12 +8,13 @@ import { extraAmount, lineAmount, servicePeriod } from '../lib/invoice/lines';
 import { formatCurrency } from '../lib/invoice/money';
 import { dueDate, TERMS_PRESETS, termsLabel } from '../lib/invoice/terms';
 import { formatInvoiceDate } from '../lib/invoice/template';
+import type { MessageKey } from '../lib/i18n';
 import { useStore } from '../lib/store';
 import type { Entry, ExtraLine, InvoiceDraft, InvoiceLine, Profile, TimesheetRow } from '../lib/types';
 import { NumberCell } from './cells';
 import { ComboInput, CustomFieldInput } from './EntryFields';
 import { InvoiceLayout } from './InvoiceLayout';
-import { AdjustmentList } from './InvoiceSettings';
+import { AdjustmentList, ROUNDING_RULES } from './InvoiceSettings';
 import { useToast } from './Toast';
 import { Button, Card, CellInput, ConfirmDialog, Field, IconButton, Select, TextArea, TextInput } from './ui';
 
@@ -169,6 +170,17 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
               </Field>
             </>
           )}
+          <Field label={t('invoiceSettings.rounding')} hint={t('invoiceSettings.roundingHint')}>
+            {(p) => (
+              <Select {...p} value={draft.rounding} onChange={(e) => update({ rounding: e.target.value as InvoiceDraft['rounding'] })}>
+                {ROUNDING_RULES.map((rule) => (
+                  <option key={rule} value={rule}>
+                    {t(`rounding.${rule}` as MessageKey)}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
           <div className="flex flex-col justify-end gap-1 text-sm">
             <p className="text-xs font-medium text-muted">{t('invoice.servicePeriod')}</p>
             <p className="font-semibold">{formatPeriodEnglish(period.start, period.end)}</p>

@@ -91,6 +91,20 @@ describe('timesheet rows linked to entries', () => {
     expect(patchRow(row, { end: '08:00:00' }).hours).toBe(row.hours); // end before start: keep hours
   });
 
+  it('marks typed hours, and clears the mark when the times are changed again', () => {
+    const typed = patchRow(draft.timesheet[0], { hours: 5 });
+    expect(typed.hoursEdited).toBe(true);
+    const retimed = patchRow(typed, { start: '07:00:28', end: '11:11:19' });
+    expect(retimed.hoursEdited).toBe(false);
+    expect(retimed.hours).toBeCloseTo(4.1808, 3);
+    expect(patchRow(typed, { hours: 4.5, hoursEdited: false }).hoursEdited).toBe(false); // "use calculated"
+  });
+
+  it('keeps full precision from the entry seconds', () => {
+    const precise = generateInvoiceDraft(profile, [{ ...entries[1], seconds: 15051 }], '2026-10-05', '2026-10-05', '2026-11-04');
+    expect(precise.timesheet[0].hours).toBe(15051 / 3600);
+  });
+
   it('saves a row back to its entry', () => {
     const row = patchRow(draft.timesheet[0], { category: 'Travel booking', description: 'Flights', end: '11:15:00' });
     const updated = rowToEntry(row, entries[1]);
