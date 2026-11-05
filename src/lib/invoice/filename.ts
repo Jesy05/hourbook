@@ -1,4 +1,5 @@
 import { DEFAULT_FILE_NAME_TEMPLATE } from '../defaults';
+import type { InvoiceDraft } from '../types';
 
 /* File names for exported invoices, from a template such as {name}_Invoice_{yyyy}-{mm}. */
 
@@ -40,4 +41,13 @@ export function renderFileName(template: string, ctx: FileNameContext, extension
   );
   const base = safeFilePart(filled).replace(/^[._-]+|[._-]+$/g, '') || 'Invoice';
   return `${base}.${extension}`;
+}
+
+/** File name for an exported invoice, from the profile's template. */
+export function invoiceFileName(draft: InvoiceDraft, fileNameTemplate: string, extension: 'xlsx' | 'pdf' = 'xlsx'): string {
+  return renderFileName(
+    fileNameTemplate,
+    { name: draft.business.name || draft.fromName, number: draft.invoiceNumber, client: draft.client.company, start: draft.periodStart, end: draft.periodEnd },
+    extension,
+  );
 }

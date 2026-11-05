@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { timeToSeconds } from '../calc';
 import { buildInvoiceDocument, type InvoiceDocument } from '../invoice/document';
-import { renderFileName } from '../invoice/filename';
+import { invoiceFileName } from '../invoice/filename';
 import { fitInBox, readImage } from '../invoice/image';
 import { excelCurrencyFormat } from '../invoice/money';
 import { EXCEL_DATE_FORMATS } from '../invoice/template';
@@ -33,16 +33,10 @@ import {
  * still recalculates when edited in Excel.
  */
 
+export { invoiceFileName };
+
 export interface InvoiceExportOptions {
   customFields: CustomField[];
-}
-
-export function invoiceFileName(draft: InvoiceDraft, fileNameTemplate: string, extension: 'xlsx' | 'pdf' = 'xlsx'): string {
-  return renderFileName(
-    fileNameTemplate,
-    { name: draft.business.name || draft.fromName, number: draft.invoiceNumber, client: draft.client.company, start: draft.periodStart, end: draft.periodEnd },
-    extension,
-  );
 }
 
 const WIDTHS: Record<string, number> = { description: 46, date: 12, hours: 10, rate: 12, amount: 15, category: 18, project: 22, requestedBy: 20 };

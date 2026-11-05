@@ -1,5 +1,5 @@
 import { downloadBlob } from '../download';
-import { invoiceFileName } from '../excel/invoice';
+import { invoiceFileName } from '../invoice/filename';
 import type { CustomField, InvoiceDraft } from '../types';
 import { buildInvoicePdf } from './invoice';
 
