@@ -1,5 +1,6 @@
 import { normalizeDraft, normalizeProfile } from './migrate';
-import type { AppData } from './types';
+import { addValue } from './fieldValues';
+import type { AppData, Entry } from './types';
 
 /*
  * All persistence goes through this module. Data lives in localStorage under a
@@ -73,11 +74,15 @@ function migrate(data: Record<string, unknown>): Record<string, unknown> {
     data = {
       ...data,
       version: 3,
-      profiles: profiles.map((p) =>
-        isObject(p) && p.invoiceMode === true
-          ? { ...p, fields: { ...(isObject(p.fields) ? p.fields : {}), requestedBy: true, project: true } }
-          : p,
-      ),
+      profiles: profiles.map((p) => {
+        if (!isObject(p)) return p;
+        // Values already used in entries become suggestions.
+        const entries = (Array.isArray(data.entries) ? data.entries : []).filter((e) => isObject(e) && e.profileId === p.id) as Entry[];
+        const backfill = (list: unknown, field: 'requestedBy' | 'project') =>
+          entries.reduce((acc, e) => addValue(acc, typeof e[field] === 'string' ? e[field] : '').list, Array.isArray(list) ? (list as string[]) : []);
+        const next = { ...p, requesters: backfill(p.requesters, 'requestedBy'), projects: backfill(p.projects, 'project') };
+        return p.invoiceMode === true ? { ...next, fields: { ...(isObject(p.fields) ? p.fields : {}), requestedBy: true, project: true } } : next;
+      }),
     };
   }
   return data;

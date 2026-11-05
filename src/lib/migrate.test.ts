@@ -143,6 +143,8 @@ describe('migration from schema v2 to v3', () => {
     entries: [
       ...v1.entries,
       { id: 'e2', profileId: 'p1', date: '2026-10-30', seconds: 3600, description: 'Budget', category: 'Other', requestedBy: 'Naima', project: 'NYC Glamsquad event (Nov 2)', createdAt: 0 },
+      // Values used in entries but missing from the saved lists are added as suggestions.
+      { id: 'e3', profileId: 'p1', date: '2026-10-31', seconds: 3600, description: 'Plan', category: 'Other', requestedBy: ' Ana ', project: 'Budget', createdAt: 0 },
     ],
   };
   const migrated = validateData(structuredClone(v2))!;
@@ -153,8 +155,8 @@ describe('migration from schema v2 to v3', () => {
     expect(migrated.profiles[1].fields).toEqual({ category: true, requestedBy: false, project: false });
   });
 
-  it('adds empty pins, removes duplicate saved values and loses nothing', () => {
-    expect(migrated.profiles[0]).toMatchObject({ requesters: ['Naima', 'Jaimie'], projects: ['NYC Glamsquad event (Nov 2)'], pinnedRequesters: [], pinnedProjects: [] });
+  it('adds empty pins, removes duplicates, saves values used in entries and loses nothing', () => {
+    expect(migrated.profiles[0]).toMatchObject({ requesters: ['Naima', 'Jaimie', 'Ana'], projects: ['NYC Glamsquad event (Nov 2)', 'Budget'], pinnedRequesters: [], pinnedProjects: [] });
     expect(migrated.entries).toEqual(v2.entries); // entries without values stay empty
   });
 
