@@ -4,82 +4,10 @@ import { newId } from '../lib/defaults';
 import type { MessageKey } from '../lib/i18n';
 import { useStore } from '../lib/store';
 import type { CustomField, CustomFieldType, CustomValue, Profile } from '../lib/types';
+import { FieldValueInput } from './Combobox';
+import { FieldValueList } from './FieldValueList';
 import { useToast } from './Toast';
 import { Button, Card, Field, IconButton, Select, TextInput, Toggle } from './ui';
-
-const NEW = '__new';
-
-/**
- * Pick a saved value or type a new one. New values are added to the saved
- * list by the store when the entry is saved.
- */
-export function ComboInput({
-  id,
-  value,
-  options,
-  onChange,
-  describedBy,
-  compact = false,
-  label,
-}: {
-  id?: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-  describedBy?: string;
-  compact?: boolean;
-  /** Accessible name when there is no visible label (table cells). */
-  label?: string;
-}) {
-  const { t } = useStore();
-  const known = value === '' || options.some((o) => o === value);
-  const [typing, setTyping] = useState(!known);
-  const showInput = typing || !known;
-  const base = compact
-    ? 'w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-ink hover:border-line focus:border-sky focus:bg-surface focus:outline-none focus:ring-2 focus:ring-sky/40'
-    : 'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink focus:border-sky focus:outline-none focus:ring-2 focus:ring-sky/40';
-
-  return (
-    <div className="flex min-w-0 gap-1.5">
-      <select
-        id={showInput ? undefined : id}
-        aria-label={label}
-        aria-describedby={describedBy}
-        value={showInput ? NEW : value}
-        onChange={(e) => {
-          if (e.target.value === NEW) {
-            setTyping(true);
-            onChange('');
-          } else {
-            setTyping(false);
-            onChange(e.target.value);
-          }
-        }}
-        className={`${base} ${showInput ? 'max-w-28' : ''}`}
-      >
-        <option value="">{t('fields.none')}</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-        <option value={NEW}>{t('fields.new')}</option>
-      </select>
-      {showInput && (
-        <input
-          id={id}
-          aria-label={label ?? t('fields.newPlaceholder')}
-          aria-describedby={describedBy}
-          autoFocus={typing && value === ''}
-          value={value}
-          placeholder={t('fields.newPlaceholder')}
-          onChange={(e) => onChange(e.target.value)}
-          className={base}
-        />
-      )}
-    </div>
-  );
-}
 
 /** Input for one custom field value. */
 export function CustomFieldInput({
@@ -176,21 +104,12 @@ export function EntryExtraFields({
     <div className={`grid gap-3 sm:grid-cols-2 ${invertLabels ? '[&_label]:text-white' : ''}`}>
       {profile.fields.requestedBy && (
         <Field label={t('fields.requestedBy')}>
-          {(p) => (
-            <ComboInput
-              id={p.id}
-              value={values.requestedBy ?? ''}
-              options={profile.requesters}
-              onChange={(requestedBy) => onChange({ ...values, requestedBy })}
-            />
-          )}
+          {(p) => <FieldValueInput field="requestedBy" id={p.id} value={values.requestedBy ?? ''} onChange={(requestedBy) => onChange({ ...values, requestedBy })} />}
         </Field>
       )}
       {profile.fields.project && (
         <Field label={t('fields.project')}>
-          {(p) => (
-            <ComboInput id={p.id} value={values.project ?? ''} options={profile.projects} onChange={(project) => onChange({ ...values, project })} />
-          )}
+          {(p) => <FieldValueInput field="project" id={p.id} value={values.project ?? ''} onChange={(project) => onChange({ ...values, project })} />}
         </Field>
       )}
       {customFields.map((field) =>
@@ -271,16 +190,8 @@ export function EntryFieldsSettings() {
         />
       </div>
 
-      {(['requesters', 'projects'] as const).map((key) =>
-        (key === 'requesters' ? profile.fields.requestedBy : profile.fields.project) ? (
-          <SavedList
-            key={key}
-            title={t(key === 'requesters' ? 'entryFields.savedRequesters' : 'entryFields.savedProjects')}
-            items={profile[key]}
-            onChange={(items) => save({ [key]: items } as Partial<Profile>)}
-          />
-        ) : null,
-      )}
+      {profile.fields.requestedBy && <FieldValueList field="requestedBy" title={t('entryFields.savedRequesters')} />}
+      {profile.fields.project && <FieldValueList field="project" title={t('entryFields.savedProjects')} />}
 
       <div className="mt-6 border-t border-line pt-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -390,44 +301,5 @@ export function EntryFieldsSettings() {
         )}
       </div>
     </Card>
-  );
-}
-
-function SavedList({ title, items, onChange }: { title: string; items: string[]; onChange: (items: string[]) => void }) {
-  const { t } = useStore();
-  const [draft, setDraft] = useState('');
-  return (
-    <div className="mt-5">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
-      {items.length === 0 ? (
-        <p className="mb-2 text-sm text-muted">{t('entryFields.emptyList')}</p>
-      ) : (
-        <ul className="mb-2 flex flex-wrap gap-2">
-          {items.map((item) => (
-            <li key={item} className="flex items-center gap-1 rounded-full border border-sky/60 bg-sky-soft py-1 pl-3 pr-1 text-sm">
-              {item}
-              <IconButton label={t('profile.removeCategory', { name: item })} className="h-7 w-7" onClick={() => onChange(items.filter((i) => i !== item))}>
-                <X size={14} aria-hidden="true" />
-              </IconButton>
-            </li>
-          ))}
-        </ul>
-      )}
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const value = draft.trim();
-          if (value && !items.some((i) => i.toLowerCase() === value.toLowerCase())) onChange([...items, value]);
-          setDraft('');
-        }}
-      >
-        <TextInput aria-label={title} placeholder={t('fields.newPlaceholder')} value={draft} onChange={(e) => setDraft(e.target.value)} />
-        <Button type="submit" size="sm">
-          <Plus size={16} aria-hidden="true" />
-          {t('common.add')}
-        </Button>
-      </form>
-    </div>
   );
 }

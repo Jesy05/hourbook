@@ -12,6 +12,8 @@ import {
   Trash2,
   TrendingUp,
   Wallet,
+  FolderOpen,
+  UserRound,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { EntryForm } from '../components/EntryForm';
@@ -178,10 +180,18 @@ export function Tracker() {
                           <span className="rounded-full bg-sky-soft px-2 py-0.5 font-medium text-ink">{entry.category}</span>
                         )}
                         {entry.requestedBy && (
-                          <span className="rounded-full bg-peach-soft px-2 py-0.5 font-medium text-ink">{entry.requestedBy}</span>
+                          <span title={t('fields.requestedBy')} className="inline-flex items-center gap-1 rounded-full bg-peach-soft px-2 py-0.5 font-medium text-ink">
+                            <UserRound size={12} aria-hidden="true" />
+                            <span className="sr-only">{t('fields.requestedBy')}: </span>
+                            {entry.requestedBy}
+                          </span>
                         )}
                         {entry.project && (
-                          <span className="rounded-full border border-line px-2 py-0.5 font-medium text-ink">{entry.project}</span>
+                          <span title={t('fields.project')} className="inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 font-medium text-ink">
+                            <FolderOpen size={12} aria-hidden="true" />
+                            <span className="sr-only">{t('fields.project')}: </span>
+                            {entry.project}
+                          </span>
                         )}
                         <span className="tabular">
                           {entry.start ? `${shortTime(entry.start)} - ${shortTime(entry.end)}` : t('entries.durationOnly')}
