@@ -124,7 +124,7 @@ export function buildInvoiceWorkbook(draft: InvoiceDraft): ExcelJS.Workbook {
   totalCell(c, totalHours, FMT.decimal, 'right');
   totalCell(c, ws.getCell(r, 3));
   const totalAmount = ws.getCell(r, 4);
-  totalAmount.value = hasLines ? formula(`SUM(D${firstLine}:D${lastLine})`, totals.amount) : 0;
+  totalAmount.value = hasLines ? formula(`SUM(D${firstLine}:D${lastLine})`, totals.total) : 0;
   totalCell(c, totalAmount, money, 'right');
   const totalRow = r;
   r += 2;
@@ -136,7 +136,7 @@ export function buildInvoiceWorkbook(draft: InvoiceDraft): ExcelJS.Workbook {
   dueLabel.fill = solid(c.titleFill);
   dueLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
   const due = ws.getCell(r, 4);
-  due.value = formula(`D${totalRow}`, totals.amount);
+  due.value = formula(`D${totalRow}`, totals.total);
   due.numFmt = money;
   due.font = font({ bold: true, size: 14, color: { argb: c.titleText } });
   due.fill = solid(c.titleFill);

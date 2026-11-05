@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newProfile } from './defaults';
-import { generateInvoiceDraft, linesFromTimesheet, monthRange, patchRow, rowToEntry } from './drafts';
+import { generateInvoiceDraft, monthRange, patchRow, rowToEntry } from './drafts';
+import { buildLines } from './invoice/lines';
 import { formatPeriod, formatPeriodEnglish, isFullMonth } from './format';
 import { invoiceFileName } from './excel/invoice';
 import type { Entry } from './types';
@@ -97,17 +98,18 @@ describe('timesheet rows linked to entries', () => {
     expect(rowToEntry({ ...row, start: '', end: '' }, entries[1]).start).toBeUndefined();
   });
 
-  it('builds one line per category and keeps rates already set', () => {
+  it('builds one line per category with the rate that applies to it', () => {
     const rows = [
       { ...draft.timesheet[0], category: 'Calendar', hours: 2 },
       { ...draft.timesheet[1], category: 'Travel booking', hours: 1.5 },
       { ...draft.timesheet[2], category: 'Calendar', hours: 4 },
     ];
-    const lines = linesFromTimesheet(rows, [{ id: 'x', description: 'Travel booking', hours: 0, rate: 35 }], 20, 'Other');
+    const ctx = { defaultRate: 20, overrides: [{ id: 'o', kind: 'category' as const, key: 'Travel booking', rate: 35 }], clientId: null };
+    const lines = buildLines(rows, draft.template, ctx, { rounding: 'none', customFields: [] });
     expect(lines.map((l) => [l.description, l.hours, l.rate])).toEqual([
       ['Calendar', 6, 20],
       ['Travel booking', 1.5, 35],
     ]);
-    expect(linesFromTimesheet([], [], 20, 'Other')).toMatchObject([{ description: 'Other', hours: 0, rate: 20 }]);
+    expect(buildLines([], draft.template, ctx, { rounding: 'none', customFields: [] })).toEqual([]);
   });
 });

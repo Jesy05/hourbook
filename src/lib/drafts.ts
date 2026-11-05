@@ -1,20 +1,19 @@
 import { endOfMonth, format, parseISO } from 'date-fns';
 import {
-  timeToSeconds,
   formatInvoiceNumber,
   monthlyWeekBlocks,
-  round2,
   SECONDS_PER_HOUR,
   weekStartOf,
   weeklyOvertimeSeconds,
   weeklyTotalsInRange,
   overtimeSummary,
-  invoiceTotals,
 } from './calc';
 import { defaultTemplates, emptyClient, newId } from './defaults';
+import { hoursBetween } from './invoice/hours';
+import { buildLines, computeTotals, type InvoiceTotals, type RateContext } from './invoice/lines';
 import type { Entry, InvoiceDraft, InvoiceLine, OvertimeDraft, Profile, RedeemedEntry, TimesheetRow } from './types';
 
-/* Builds editable report drafts from raw entries. Drafts never point back at entries. */
+/* Builds editable report drafts from raw entries. Invoice timesheet rows keep a link to their entry. */
 
 export function monthRange(month: string): { start: string; end: string } {
   const first = parseISO(`${month}-01`);
@@ -48,9 +47,8 @@ export function generateInvoiceDraft(
     .filter((e) => e.profileId === profile.id && inRange(e.date, start, end))
     .sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? '').localeCompare(b.start ?? ''));
   const now = Date.now();
-  const rate = profile.invoice.rate;
   const timesheet = periodEntries.map((e) => entryToRow(e));
-  return {
+  const draft: InvoiceDraft = {
     id: existing?.id ?? newId(),
     profileId: profile.id,
     type: 'invoice',
@@ -79,9 +77,10 @@ export function generateInvoiceDraft(
     rounding: settings.rounding,
     template: { ...template, sections: { ...template.sections } },
     linesManual: false,
-    lines: linesFromTimesheet(timesheet, [], rate, profile.categories[0] ?? 'Services'),
+    lines: [],
     timesheet,
   };
+  return { ...draft, lines: linesForDraft(draft, profile) };
 }
 
 export function generateOvertimeDraft(
@@ -139,16 +138,28 @@ export function overtimeDraftSummary(draft: OvertimeDraft, redeemed: RedeemedEnt
   });
 }
 
-export function invoiceDraftTotals(draft: InvoiceDraft) {
+export function invoiceDraftTotals(draft: InvoiceDraft): InvoiceTotals & { timesheetHours: number } {
   return {
-    ...invoiceTotals(draft.lines),
-    timesheetHours: round2(draft.timesheet.reduce((sum, row) => sum + row.hours, 0)),
+    ...computeTotals(draft.lines, draft.extraLines, draft.adjustments),
+    timesheetHours: draft.timesheet.reduce((sum, row) => sum + row.hours, 0),
   };
 }
 
-/* ---------- timesheet rows and tracker entries ---------- */
+/** Rates in effect for a draft: the profile's default and overrides, for the draft's client. */
+export function rateContext(profile: Profile, clientId: string | null): RateContext {
+  return { defaultRate: profile.invoice.rate, overrides: profile.invoice.rateOverrides, clientId };
+}
 
-const HOURS_PRECISION = 10000;
+/** Line items for a timesheet, following the draft's layout template. */
+export function linesForDraft(draft: InvoiceDraft, profile: Profile, timesheet = draft.timesheet): InvoiceLine[] {
+  return buildLines(timesheet, draft.template, rateContext(profile, draft.clientId), {
+    rounding: draft.rounding,
+    customFields: profile.customFields.filter((f) => f.enabled),
+    previous: draft.lines,
+  });
+}
+
+/* ---------- timesheet rows and tracker entries ---------- */
 
 export function entryToRow(entry: Entry): TimesheetRow {
   return {
@@ -157,7 +168,8 @@ export function entryToRow(entry: Entry): TimesheetRow {
     date: entry.date,
     start: entry.start ?? '',
     end: entry.end ?? '',
-    hours: Math.round((entry.seconds / SECONDS_PER_HOUR) * HOURS_PRECISION) / HOURS_PRECISION,
+    // Full precision: rounding to 2 decimals happens only when shown or exported.
+    hours: entry.seconds / SECONDS_PER_HOUR,
     category: entry.category,
     description: entry.description,
     ...(entry.requestedBy ? { requestedBy: entry.requestedBy } : {}),
@@ -182,31 +194,20 @@ export function rowToEntry(row: TimesheetRow, entry: Entry): Entry {
   };
 }
 
-/** Applies an edit to a row. Changing start or end recalculates the hours. */
+/**
+ * Applies an edit to a row. Changing start or end recalculates the hours; typing
+ * the hours by hand marks the row so a mismatch with its times can be flagged.
+ */
 export function patchRow(row: TimesheetRow, patch: Partial<TimesheetRow>): TimesheetRow {
   const next = { ...row, ...patch };
-  const timesChanged = patch.start !== undefined || patch.end !== undefined;
-  if (timesChanged && next.start && next.end && timeToSeconds(next.end) > timeToSeconds(next.start)) {
-    next.hours = Math.round(((timeToSeconds(next.end) - timeToSeconds(next.start)) / SECONDS_PER_HOUR) * HOURS_PRECISION) / HOURS_PRECISION;
+  if (patch.start !== undefined || patch.end !== undefined) {
+    const calculated = hoursBetween(next.start, next.end);
+    if (calculated !== null) {
+      next.hours = calculated;
+      next.hoursEdited = false;
+    }
+  } else if (patch.hours !== undefined && patch.hoursEdited === undefined) {
+    next.hoursEdited = true;
   }
   return next;
-}
-
-/**
- * One line item per category, in the order categories first appear in the
- * timesheet. Rates already set on a line with the same name are kept.
- */
-export function linesFromTimesheet(
-  rows: TimesheetRow[],
-  previous: InvoiceLine[],
-  defaultRate: number,
-  fallbackCategory: string,
-): InvoiceLine[] {
-  const totals = new Map<string, number>();
-  for (const row of rows) totals.set(row.category, (totals.get(row.category) ?? 0) + row.hours);
-  if (totals.size === 0) return [{ id: newId(), description: fallbackCategory, hours: 0, rate: defaultRate }];
-  return [...totals.entries()].map(([category, hours]) => {
-    const old = previous.find((l) => l.description === category);
-    return { id: old?.id ?? newId(), description: category, hours: round2(hours), rate: old?.rate ?? defaultRate };
-  });
 }

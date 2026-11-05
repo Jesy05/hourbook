@@ -36,6 +36,8 @@ export function Reports() {
   const [invoiceFrom, setInvoiceFrom] = useState(`${today.slice(0, 7)}-01`);
   const [invoiceTo, setInvoiceTo] = useState(today);
   const [rangeError, setRangeError] = useState('');
+  const [clientId, setClientId] = useState<string | null>(profile?.invoice.defaultClientId ?? null);
+  const [templateId, setTemplateId] = useState<string | null>(profile?.invoice.defaultTemplateId ?? null);
   const [deleting, setDeleting] = useState<Draft | null>(null);
 
   if (!profile) return null;
@@ -58,7 +60,7 @@ export function Reports() {
         setRangeError(t('reports.rangeInvalid'));
         return;
       }
-      draft = generateInvoiceDraft(profile, data.entries, range.start, range.end, today);
+      draft = generateInvoiceDraft(profile, data.entries, range.start, range.end, today, undefined, { clientId, templateId });
     } else {
       const start = periodMode === 'ytd' ? `${today.slice(0, 4)}-01-01` : from;
       const end = periodMode === 'ytd' ? today : to;
@@ -123,6 +125,32 @@ export function Reports() {
                   {invoicePeriod === 'month' && (
                     <Field label={t('reports.month')}>
                       {(p) => <TextInput {...p} type="month" value={month} onChange={(e) => setMonth(e.target.value)} required />}
+                    </Field>
+                  )}
+                  {profile.invoice.clients.length > 1 && (
+                    <Field label={t('invoice.billTo')}>
+                      {(p) => (
+                        <Select {...p} value={clientId ?? ''} onChange={(e) => setClientId(e.target.value || null)}>
+                          {profile.invoice.clients.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.company || t('invoiceSettings.unnamedClient')}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+                    </Field>
+                  )}
+                  {profile.invoice.templates.length > 1 && (
+                    <Field label={t('layout.template')}>
+                      {(p) => (
+                        <Select {...p} value={templateId ?? ''} onChange={(e) => setTemplateId(e.target.value || null)}>
+                          {profile.invoice.templates.map((tpl) => (
+                            <option key={tpl.id} value={tpl.id}>
+                              {tpl.name}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
                     </Field>
                   )}
                 </>
