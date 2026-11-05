@@ -2,7 +2,7 @@
 
 A simple hours tracker that exports polished Excel files. It supports two ways of working, which can be turned on per profile:
 
-- **Invoice mode**: for independent contractors who bill by the hour. Generates a monthly invoice workbook (Invoice + Timesheet sheets) and a ready-to-copy email.
+- **Invoice mode**: for independent contractors who bill by the hour. Each profile configures its own invoice (business and client details, currency, rates, payment terms, numbering, layout) and exports it as Excel or PDF, with a ready-to-copy email.
 - **Overtime mode**: for tracking hours worked above a standard week, the overtime later redeemed as time off, and the remaining balance in hours and days. Generates an overtime tracker workbook laid out like the original spreadsheet (weekly table, TOTAL HOURS summary, redeemed log, monthly blocks).
 
 The interface is in Spanish by default, with an English option in Settings.
@@ -12,9 +12,55 @@ The interface is in Spanish by default, with an English option in Settings.
 - Large timer with Start / Pause / Resume / Stop. It stores timestamps, so it survives a refresh or a closed tab. Entries that cross midnight are split into one entry per day, and entries shorter than one minute are discarded with an undo option.
 - Manual entries with a start/end time or just a duration, editing, deleting (with confirmation and undo) and an overlap warning.
 - Summary cards for today, this week and this month, plus overtime and balance (overtime mode) or billable hours and amount accrued (invoice mode). A weekly view with a bar per day.
-- Report drafts that are generated from entries and can be edited in the app before downloading. Edits only change the draft. Drafts are saved and can be reopened or regenerated (with a confirmation before overwriting edits).
+- Optional entry fields per profile: **Requested by** (person or department), **Project**, and custom fields (text, list of options, number or checkbox). Every field can be turned on or off, so a simple profile keeps a simple form.
+- Report drafts that are generated from entries and can be edited in the app before downloading. In an invoice, the timesheet edits the real entries; everything else only changes the draft. Drafts are saved and can be reopened or regenerated (with a confirmation before overwriting edits).
 - Excel files built with `exceljs`: real formulas for every total and derived value (with cached results so previews work), app palette, frozen headers, number formats such as `[h]:mm`, `[h]:mm:ss`, `0.00`, currency and `d-mmm`, and print setup.
 - Several profiles on the same browser, JSON backup export and import, and a full delete.
+
+## Entry fields
+
+Settings > **Entry fields** turns Category, Requested by and Project on or off, and manages custom fields. Requested by and Project are pickers with a saved list per profile: choose a saved value or pick "+ New..." and type one, and it is added to the list when the entry is saved. The fields appear in the timer, the manual entry form, the entry list and the invoice timesheet, and can be used in invoice descriptions, columns and grouping. Overtime mode works as before; the fields are optional there too.
+
+## Invoices
+
+### Settings > Invoice
+
+Everything is optional and saved as you type:
+
+- **Your business (From)**: name, address, email, phone, tax ID and a logo (PNG or JPG up to 300 KB, stored as a data URL).
+- **Clients (Bill to)**: company, contact, address, billing email and CC. Save several and mark one as the default; pick another one when generating.
+- **Currency and rates**: ISO code (USD by default) with an optional custom symbol, a default hourly rate and special rates by category, project or client (project wins, then category, then client).
+- **Payment terms**: Due on receipt, Net 7, Net 14, Net 15, Net 30 or custom text with optional days. The due date is calculated from the issue date.
+- **Numbering**: prefix, next number and digits (e.g. `INV-0001`), with a reset. The number only goes up when an invoice is actually exported, and the notice has an Undo button.
+- **Payment instructions, notes and footer**. Do not store full card numbers here: the text goes on the invoice.
+- **Taxes and discounts** added to every new invoice, as a percentage or a fixed amount. Discounts come off the subtotal first; taxes apply to the discounted amount.
+- **File name template**, e.g. `{name}_Invoice_{yyyy}-{mm}` gives `Jesy_Nicole_Gonzalez_Jarquin_Invoice_2026-10.xlsx`. Tokens: `{name}`, `{number}`, `{client}`, `{yyyy}`, `{mm}`, `{dd}`, `{start}`, `{end}`. Accents and unsafe characters are removed.
+- **Hour rounding**: none, nearest 0.25 h, nearest 0.1 h, or round up to 15 minutes. It is applied per entry and stated on the invoice.
+
+### Layout templates
+
+When editing an invoice, **Invoice layout** controls:
+
+- **Grouping**: one line per entry, or by any mix of date, requester, project, category and custom fields (e.g. day + requester + project). Entries with different rates never share a line.
+- **Line description** built from tokens, with a live preview: `{date}`, `{start}`, `{end}`, `{hours}`, `{category}`, `{requestedBy}`, `{project}`, `{description}` and custom fields by name. `{date} | {requestedBy} - {project} | {hours} hours` gives `10/29/26 | Naima - NYC Glamsquad event | 4.18 hours`. Empty values are dropped together with their separator.
+- **Columns** and their order: description, date, hours, rate, amount, category, project, requester and custom fields.
+- **Date format** (MM/DD/YY by default), independent of the interface language.
+- **Service period**: the dates actually worked (default) or the full chosen period. The period itself is a whole month or any date range.
+- **Sections** to show: From, Bill to, terms and due date, payment instructions, notes, and the timesheet sheet.
+- **Other charges**: extra lines with quantity and unit price, such as reimbursable expenses.
+
+Save the layout as a template ("Monthly - by day"), update it, make it the default or delete it. Every profile starts with "Por categoría" and "Mensual - por día".
+
+### Hours accuracy
+
+Hours are `hours + minutes/60 + seconds/3600` and are kept at full precision; they are rounded to 2 decimals only for display and export (7:00:28 to 11:11:19 is 4.18 h). Each amount is the hours as shown times the rate. If hours on a timesheet row are typed by hand and no longer match its start and end, the row is flagged with the calculated value and a "use calculated" button; the edit is not blocked.
+
+### Exports
+
+- **Excel** (`exceljs`): an Invoice sheet laid out by the template and an optional Timesheet sheet (Date, Start, End, Hours, Requested by, Project, Category, Description and custom fields). Amounts, totals, subtotal, discounts, taxes and the total are formulas with cached values; currency formats, frozen headers, print area and fit to page width are set.
+- **PDF** (`pdf-lib`): the same layout and data at Letter size, with the timesheet on its own page.
+- Both are built from one shared document model (`src/lib/invoice/document.ts`), and both load only when you download.
+- The **email text** uses the invoice number, service period, total with currency and due date. The app never sends email.
 
 ## Run locally
 
@@ -33,7 +79,7 @@ Then open the URL that Vite prints (by default http://localhost:5173).
 npm test
 ```
 
-The calculation logic lives in `src/lib/calc.ts` as pure functions. Tests cover weekly overtime, h:mm and decimal conversion, balance and days, midnight splitting, week grouping, monthly totals and invoice totals. `src/lib/excel/excel.test.ts` builds both workbooks, reads them back and checks the formulas and cached values.
+The calculation logic lives in pure functions in `src/lib/calc.ts` and `src/lib/invoice/`. Tests cover weekly overtime, h:mm and decimal conversion, balance and days, midnight splitting, week grouping, monthly totals and invoice totals. `src/lib/excel/excel.test.ts` builds both workbooks, reads them back and checks the formulas and cached values.
 
 ## Build
 
@@ -86,7 +132,10 @@ src/
     i18n.ts        Spanish and English dictionary
     timer.ts       timer to entries, midnight aware
     tz.ts          time zone helpers based on Intl
-  components/      shared UI, timer, forms and report editors
+    invoice/       invoice logic: hours, grouping, templates, terms, money, totals, file names, document model
+    pdf/           PDF invoice export
+    migrate.ts     upgrades stored data to the current schema (v2)
+  components/      shared UI, timer, forms, settings and report editors
   pages/           Tracker, Reports, Report editor, Settings, Setup, Auth
 api/               Vercel functions: auth (register, login, logout, me) and data sync
 dev-api.ts         serves api/ inside the Vite dev server
