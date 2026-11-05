@@ -68,11 +68,11 @@ describe('period labels and file names', () => {
     expect(formatPeriod('2026-10-05', '2026-10-18', 'en')).toBe('Oct 5 - Oct 18, 2026');
   });
 
-  it('names the file by month or by range', () => {
+  it('names the file from the profile template', () => {
     const month = generateInvoiceDraft(profile, entries, '2026-10-01', '2026-10-31', '2026-11-04');
     const range = generateInvoiceDraft(profile, entries, '2026-10-05', '2026-10-18', '2026-11-04');
-    expect(invoiceFileName(month)).toBe('Jesy_Gonzalez_Invoice_2026-10.xlsx');
-    expect(invoiceFileName(range)).toBe('Jesy_Gonzalez_Invoice_2026-10-05_to_2026-10-18.xlsx');
+    expect(invoiceFileName(month, '{name}_Invoice_{yyyy}-{mm}')).toBe('Jesy_Gonzalez_Invoice_2026-10.xlsx');
+    expect(invoiceFileName(range, '{name}_Invoice_{start}_to_{end}', 'pdf')).toBe('Jesy_Gonzalez_Invoice_2026-10-05_to_2026-10-18.pdf');
   });
 });
 

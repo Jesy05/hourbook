@@ -1,6 +1,10 @@
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
-import type { InvoiceDraft, OvertimeDraft, RedeemedEntry } from '../types';
+import { PDFDocument } from 'pdf-lib';
+import { newProfile } from '../defaults';
+import { generateInvoiceDraft } from '../drafts';
+import { buildInvoicePdf } from '../pdf/invoice';
+import type { Entry, InvoiceDraft, OvertimeDraft, RedeemedEntry } from '../types';
 import { normalizeDraft } from '../migrate';
 import { buildInvoiceWorkbook, invoiceFileName } from './invoice';
 import { buildOvertimeWorkbook, overtimeFileName } from './overtime';
@@ -116,28 +120,99 @@ const invoiceDraft = normalizeDraft({
 } as unknown as InvoiceDraft, []) as InvoiceDraft;
 
 describe('invoice workbook', () => {
-  it('has an invoice and a timesheet sheet with formulas', async () => {
-    const wb = await roundTrip(buildInvoiceWorkbook(invoiceDraft));
-    const inv = wb.getWorksheet('Invoice')!;
-    expect(inv.getCell('A1').value).toBe('INVOICE');
-    const formulas: string[] = [];
-    inv.eachRow((row) =>
-      row.eachCell((cell) => {
-        if (cell.formula) formulas.push(`${cell.address}=${cell.formula}=${cell.result}`);
-      }),
-    );
-    expect(formulas.some((f) => /ROUND\(B\d+\*C\d+,2\)=250$/.test(f))).toBe(true);
-    expect(formulas.some((f) => /SUM\(D\d+:D\d+\)=316\.6$/.test(f))).toBe(true);
-    expect(formulas.some((f) => /SUM\(B\d+:B\d+\)=15\.83$/.test(f))).toBe(true);
+  const entries: Entry[] = [
+    { id: 'e1', profileId: 'p1', date: '2026-10-29', start: '07:00:28', end: '11:11:19', seconds: 15051, description: 'Event setup', category: 'Other', requestedBy: 'Naima', project: 'NYC Glamsquad event', createdAt: 0 },
+    { id: 'e2', profileId: 'p1', date: '2026-10-30', start: '09:00:00', end: '11:00:00', seconds: 7200, description: 'Budget', category: 'Other', requestedBy: 'Jaimie', project: 'Budget', createdAt: 0 },
+  ];
+  const base = { ...newProfile(), id: 'p1', name: 'Jesy Nicole González Jarquín', invoiceMode: true };
+  const profile = {
+    ...base,
+    invoice: { ...base.invoice, rate: 20, defaultTemplateId: 'tpl-daily', terms: { preset: 'net14' as const, customText: '', customDays: null } },
+  };
+  const generated = generateInvoiceDraft(profile, entries, '2026-10-01', '2026-10-31', '2026-10-31');
+  const draft: InvoiceDraft = {
+    ...generated,
+    extraLines: [{ id: 'x', description: 'Parking', quantity: 2, unitPrice: 25 }],
+    adjustments: [
+      { id: 'd', label: 'Discount', kind: 'discount', mode: 'percent', value: 10 },
+      { id: 't', label: 'Tax', kind: 'tax', mode: 'percent', value: 5 },
+    ],
+  };
+  const cells = (ws: ExcelJS.Worksheet) => {
+    const out: { address: string; value: unknown; formula?: string; result?: unknown }[] = [];
+    ws.eachRow((row) => row.eachCell((cell) => out.push({ address: cell.address, value: cell.value, formula: cell.formula, result: cell.result })));
+    return out;
+  };
 
-    const ts = wb.getWorksheet('Timesheet')!;
-    expect(ts.getRow(3).values).toEqual([undefined, 'Date', 'Start', 'End', 'Hours', 'Category', 'Description']);
-    expect(ts.getCell('D6').formula).toBe('SUM(D4:D5)');
-    expect(ts.getCell('D6').result).toBe(3.5);
+  it('writes the lines with the template description and real formulas', async () => {
+    const wb = await roundTrip(buildInvoiceWorkbook(draft, { customFields: [] }));
+    const inv = wb.getWorksheet('Invoice')!;
+    const all = cells(inv);
+    expect(inv.getCell('A1').value).toBe('INVOICE');
+    expect(all.some((c) => c.value === '10/29/26 | Naima - NYC Glamsquad event | 4.18 hours')).toBe(true);
+    expect(all.some((c) => c.value === '10/30/26 | Jaimie - Budget | 2.00 hours')).toBe(true);
+    const amounts = all.filter((c) => /^ROUND\(B\d+\*C\d+,2\)$/.test(c.formula ?? ''));
+    expect(amounts.map((c) => c.result)).toEqual([83.6, 40, 50]); // two time lines, then the extra item (2 x 25)
+    expect(all.find((c) => c.formula?.startsWith('-ROUND('))?.result).toBe(-17.36); // 10% off 173.60
+    expect(all.find((c) => c.formula?.startsWith('ROUND(('))?.result).toBe(7.81); // 5% of 156.24
+    const total = all.find((c) => typeof c.value === 'string' && c.value.startsWith('TOTAL AMOUNT DUE'));
+    expect(total?.value).toBe('TOTAL AMOUNT DUE (USD)');
+    expect(all.some((c) => c.formula && c.result === 164.05)).toBe(true);
   });
 
-  it('names the file after the person and month', () => {
-    expect(invoiceFileName(invoiceDraft)).toBe('Jesy_Gonzalez_Invoice_2026-10.xlsx');
+  it('shows terms, due date, service period and currency', async () => {
+    const wb = await roundTrip(buildInvoiceWorkbook(draft, { customFields: [] }));
+    const inv = wb.getWorksheet('Invoice')!;
+    const byLabel = (label: string) => {
+      const found = cells(inv).find((c) => c.value === label);
+      return found ? inv.getCell(found.address).row : null;
+    };
+    expect(inv.getCell(`B${byLabel('Terms')}`).value).toBe('Net 14');
+    expect(inv.getCell(`B${byLabel('Due date')}`).value).toEqual(new Date(Date.UTC(2026, 10, 14)));
+    expect(inv.getCell(`B${byLabel('Due date')}`).numFmt).toBe('mm/dd/yy');
+    expect(inv.getCell(`B${byLabel('Service period')}`).value).toBe('10/29/26 - 10/30/26'); // dates worked
+    expect(inv.getCell(`B${byLabel('Currency')}`).value).toBe('USD');
+    expect(inv.views[0]).toMatchObject({ state: 'frozen', ySplit: 2 });
+    expect(inv.pageSetup).toMatchObject({ fitToPage: true, fitToWidth: 1 });
+    expect(inv.pageSetup.printArea).toMatch(/^A1:D\d+$/);
+    const moneyCell = cells(inv).find((c) => c.formula?.startsWith('ROUND(B'))!;
+    expect(inv.getCell(moneyCell.address).numFmt).toContain('"$"');
+  });
+
+  it('adds the timesheet sheet with every field', async () => {
+    const wb = await roundTrip(buildInvoiceWorkbook(draft, { customFields: [] }));
+    const ts = wb.getWorksheet('Timesheet')!;
+    expect(ts.getRow(3).values).toEqual([undefined, 'Date', 'Start', 'End', 'Hours', 'Requested by', 'Project', 'Category', 'Description']);
+    expect(ts.getCell('D4').value).toBe(4.18);
+    expect(ts.getCell('E4').value).toBe('Naima');
+    expect(ts.getCell('D6').formula).toBe('SUM(D4:D5)');
+    expect(ts.getCell('D6').result).toBe(6.18);
+  });
+
+  it('leaves out hidden sections', async () => {
+    const hidden = { ...draft, template: { ...draft.template, sections: { ...draft.template.sections, timesheet: false, from: false } } };
+    const wb = await roundTrip(buildInvoiceWorkbook(hidden, { customFields: [] }));
+    expect(wb.getWorksheet('Timesheet')).toBeUndefined();
+    expect(cells(wb.getWorksheet('Invoice')!).some((c) => c.value === 'FROM')).toBe(false);
+  });
+
+  it('still exports a draft saved before schema v2', async () => {
+    const wb = await roundTrip(buildInvoiceWorkbook(invoiceDraft, { customFields: [] }));
+    const all = cells(wb.getWorksheet('Invoice')!);
+    expect(all.some((c) => c.formula && c.result === 316.6)).toBe(true);
+  });
+
+  it('names the file from the profile template, without unsafe characters', () => {
+    expect(invoiceFileName(draft, '{name}_Invoice_{yyyy}-{mm}')).toBe('Jesy_Nicole_Gonzalez_Jarquin_Invoice_2026-10.xlsx');
+  });
+
+  it('exports the same invoice as a Letter-size PDF', async () => {
+    const bytes = await buildInvoicePdf(draft, []);
+    expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-');
+    const pdf = await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBe(2); // invoice + timesheet
+    expect(pdf.getPage(0).getSize()).toEqual({ width: 612, height: 792 });
+    expect(pdf.getTitle()).toBe('Invoice INV-0001');
   });
 });
 

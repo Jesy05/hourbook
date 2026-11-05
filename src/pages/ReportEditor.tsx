@@ -1,5 +1,5 @@
-import { ArrowLeft, Download, Info, LoaderCircle, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Download, FileDown, Info, LoaderCircle, RefreshCw } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { InvoiceEditor } from '../components/InvoiceEditor';
 import { OvertimeEditor } from '../components/OvertimeEditor';
@@ -21,7 +21,9 @@ export function ReportEditor() {
   const toast = useToast();
   const redeemed = useRedeemed();
   const [confirmRegen, setConfirmRegen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<false | 'xlsx' | 'pdf'>(false);
+  const latestProfile = useRef(profile);
+  latestProfile.current = profile;
 
   const draft = data.drafts.find((d) => d.id === draftId && d.profileId === profile?.id);
 
@@ -56,20 +58,39 @@ export function ReportEditor() {
     setConfirmRegen(false);
   };
 
-  const download = async () => {
-    setBusy(true);
+  /** After an invoice is exported, move to the next number (only if this draft used the current one), with undo. */
+  const bumpInvoiceNumber = (invoiceNumber: string) => {
+    const settings = profile.invoice;
+    if (invoiceNumber !== formatInvoiceNumber(settings.prefix, settings.nextNumber, settings.padding)) return;
+    const previous = settings.nextNumber;
+    const bumped = previous + 1;
+    saveProfile({ ...profile, invoice: { ...settings, nextNumber: bumped } });
+    toast(t('invoice.numberBumped', { number: formatInvoiceNumber(settings.prefix, bumped, settings.padding) }), {
+      tone: 'info',
+      action: {
+        label: t('reports.numberUndo'),
+        onClick: () => {
+          // Undo only if nothing else moved the number in the meantime.
+          const current = latestProfile.current;
+          if (current && current.invoice.nextNumber === bumped) saveProfile({ ...current, invoice: { ...current.invoice, nextNumber: previous } });
+        },
+      },
+    });
+  };
+
+  const download = async (format: 'xlsx' | 'pdf' = 'xlsx') => {
+    setBusy(format);
     try {
-      const excel = await import('../lib/excel');
       if (draft.type === 'invoice') {
-        const file = await excel.downloadInvoice(draft);
+        const customFields = profile.customFields.filter((f) => f.enabled);
+        const file =
+          format === 'pdf'
+            ? await (await import('../lib/pdf')).downloadInvoicePdf(draft, customFields, profile.invoice.fileNameTemplate)
+            : await (await import('../lib/excel')).downloadInvoice(draft, customFields, profile.invoice.fileNameTemplate);
         toast(t('reports.downloaded', { file }));
-        // Move to the next invoice number only when this draft used the current one.
-        if (draft.invoiceNumber === formatInvoiceNumber(profile.invoice.prefix, profile.invoice.nextNumber, profile.invoice.padding)) {
-          const nextNumber = profile.invoice.nextNumber + 1;
-          saveProfile({ ...profile, invoice: { ...profile.invoice, nextNumber } });
-          toast(t('invoice.numberBumped', { number: formatInvoiceNumber(profile.invoice.prefix, nextNumber, profile.invoice.padding) }), { tone: 'info' });
-        }
+        bumpInvoiceNumber(draft.invoiceNumber);
       } else {
+        const excel = await import('../lib/excel');
         const file = await excel.downloadOvertime(profile.name, draft, redeemedInPeriod(redeemed, draft));
         toast(t('reports.downloaded', { file }));
       }
@@ -100,10 +121,16 @@ export function ReportEditor() {
               <RefreshCw size={16} aria-hidden="true" />
               {t('reports.regenerate')}
             </Button>
-            <Button variant="primary" onClick={download} disabled={busy} aria-busy={busy}>
-              {busy ? <LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
-              {busy ? t('reports.downloading') : t('reports.download')}
+            <Button variant="primary" onClick={() => download('xlsx')} disabled={!!busy} aria-busy={busy === 'xlsx'}>
+              {busy === 'xlsx' ? <LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
+              {busy === 'xlsx' ? t('reports.downloading') : t('reports.download')}
             </Button>
+            {draft.type === 'invoice' && (
+              <Button variant="secondary" onClick={() => download('pdf')} disabled={!!busy} aria-busy={busy === 'pdf'}>
+                {busy === 'pdf' ? <LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> : <FileDown size={18} aria-hidden="true" />}
+                {busy === 'pdf' ? t('reports.downloading') : t('reports.downloadPdf')}
+              </Button>
+            )}
           </div>
         </div>
         <p className="flex items-center gap-2 rounded-xl border border-sky/60 bg-sky-soft px-3 py-2 text-sm text-ink">

@@ -1,6 +1,6 @@
 import type ExcelJS from 'exceljs';
 import { downloadBlob } from '../download';
-import type { InvoiceDraft, OvertimeDraft, RedeemedEntry } from '../types';
+import type { CustomField, InvoiceDraft, OvertimeDraft, RedeemedEntry } from '../types';
 import { buildInvoiceWorkbook, invoiceFileName } from './invoice';
 import { buildOvertimeWorkbook, overtimeFileName } from './overtime';
 
@@ -14,8 +14,8 @@ async function save(wb: ExcelJS.Workbook, fileName: string): Promise<string> {
   return fileName;
 }
 
-export function downloadInvoice(draft: InvoiceDraft): Promise<string> {
-  return save(buildInvoiceWorkbook(draft), invoiceFileName(draft));
+export function downloadInvoice(draft: InvoiceDraft, customFields: CustomField[], fileNameTemplate: string): Promise<string> {
+  return save(buildInvoiceWorkbook(draft, { customFields }), invoiceFileName(draft, fileNameTemplate, 'xlsx'));
 }
 
 export function downloadOvertime(name: string, draft: OvertimeDraft, redeemed: RedeemedEntry[]): Promise<string> {
