@@ -89,6 +89,8 @@ export interface InvoiceLine {
 
 export interface TimesheetRow {
   id: string;
+  /** The tracker entry this row came from; edits to the row are saved to it. */
+  entryId?: string;
   date: string;
   start: string;
   end: string;
@@ -115,6 +117,8 @@ export interface InvoiceDraft {
   billTo: string;
   currency: string;
   paymentDetails: string;
+  /** True once line items were edited by hand; until then they follow the timesheet. */
+  linesManual?: boolean;
   lines: InvoiceLine[];
   timesheet: TimesheetRow[];
 }

@@ -1,13 +1,14 @@
-import { Copy, FileText, ListOrdered, Mail, Plus, Sheet, Trash2 } from 'lucide-react';
+import { Copy, FileText, Info, Link2, ListOrdered, Mail, Plus, RefreshCw, Sheet, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { lineAmount } from '../lib/calc';
 import { newId } from '../lib/defaults';
-import { invoiceDraftTotals } from '../lib/drafts';
-import { formatMoney, formatMoneyEnglish, formatNumber, formatPeriodEnglish, shortTime } from '../lib/format';
+import { entryToRow, invoiceDraftTotals, linesFromTimesheet, patchRow, rowToEntry } from '../lib/drafts';
+import { formatDay, formatMoney, formatMoneyEnglish, formatNumber, formatPeriodEnglish, shortTime } from '../lib/format';
 import { useStore } from '../lib/store';
-import type { InvoiceDraft, InvoiceLine, TimesheetRow } from '../lib/types';
+import type { Entry, InvoiceDraft, InvoiceLine, TimesheetRow } from '../lib/types';
 import { NumberCell } from './cells';
 import { useToast } from './Toast';
-import { Button, Card, CellInput, Field, IconButton, TextArea, TextInput } from './ui';
+import { Button, Card, CellInput, ConfirmDialog, Field, IconButton, TextArea, TextInput } from './ui';
 
 export function invoiceEmail(draft: InvoiceDraft) {
   const totals = invoiceDraftTotals(draft);
@@ -24,16 +25,63 @@ export function invoiceEmail(draft: InvoiceDraft) {
 const th = 'px-2 py-2 text-left text-sm font-semibold';
 
 export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChange: (draft: InvoiceDraft) => void }) {
-  const { t, language, profile } = useStore();
+  const { t, language, profile, data, addEntries, updateEntry, deleteEntry } = useStore();
   const toast = useToast();
   const totals = invoiceDraftTotals(draft);
   const email = invoiceEmail(draft);
+  const [removing, setRemoving] = useState<{ row: TimesheetRow; entry: Entry } | null>(null);
+
+  const categories = profile?.categories ?? [];
+  const defaultRate = draft.lines[0]?.rate ?? profile?.invoice.rate ?? 0;
+  const entryFor = (row: TimesheetRow) => (row.entryId ? data.entries.find((e) => e.id === row.entryId) : undefined);
+  const hasUnlinked = draft.timesheet.some((row) => !entryFor(row));
 
   const set = <K extends keyof InvoiceDraft>(key: K, value: InvoiceDraft[K]) => onChange({ ...draft, [key]: value });
-  const setLine = (id: string, patch: Partial<InvoiceLine>) =>
-    set('lines', draft.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-  const setRow = (id: string, patch: Partial<TimesheetRow>) =>
-    set('timesheet', draft.timesheet.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  // Line items edited by hand stop following the timesheet.
+  const setLines = (lines: InvoiceLine[]) => onChange({ ...draft, lines, linesManual: true });
+  const setLine = (id: string, patch: Partial<InvoiceLine>) => setLines(draft.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const recalcLines = () =>
+    onChange({ ...draft, linesManual: false, lines: linesFromTimesheet(draft.timesheet, draft.lines, defaultRate, categories[0] ?? 'Services') });
+
+  /** Saves the timesheet and, unless edited by hand, rebuilds the line items from it. */
+  const setTimesheet = (timesheet: TimesheetRow[]) =>
+    onChange({
+      ...draft,
+      timesheet,
+      lines: draft.linesManual ? draft.lines : linesFromTimesheet(timesheet, draft.lines, defaultRate, categories[0] ?? 'Services'),
+    });
+
+  /** Edits a row and saves the same change to its tracker entry. */
+  const setRow = (id: string, patch: Partial<TimesheetRow>) => {
+    const timesheet = draft.timesheet.map((r) => (r.id === id ? patchRow(r, patch) : r));
+    const row = timesheet.find((r) => r.id === id);
+    const entry = row && entryFor(row);
+    if (row && entry) updateEntry(rowToEntry(row, entry));
+    setTimesheet(timesheet);
+  };
+
+  const addRow = () => {
+    if (!profile) return;
+    const entry: Entry = {
+      id: newId(),
+      profileId: profile.id,
+      date: draft.timesheet.at(-1)?.date ?? draft.periodStart,
+      seconds: 0,
+      description: '',
+      category: categories[0] ?? '',
+      createdAt: Date.now(),
+    };
+    addEntries([entry]);
+    setTimesheet([...draft.timesheet, entryToRow(entry)]);
+  };
+
+  const removeRow = (row: TimesheetRow) => {
+    const entry = entryFor(row);
+    if (entry) setRemoving({ row, entry });
+    else setTimesheet(draft.timesheet.filter((r) => r.id !== row.id));
+  };
+
   const money = (n: number) => formatMoney(n, draft.currency, language);
 
   const copy = async (text: string) => {
@@ -80,15 +128,25 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
         actions={
           <Button
             size="sm"
-            onClick={() =>
-              set('lines', [...draft.lines, { id: newId(), description: '', hours: 0, rate: profile?.invoice.rate ?? 0 }])
-            }
+            onClick={() => setLines([...draft.lines, { id: newId(), description: '', hours: 0, rate: defaultRate }])}
           >
             <Plus size={16} aria-hidden="true" />
             {t('reports.addRow')}
           </Button>
         }
       >
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
+          <p className="flex items-center gap-2">
+            <Info size={16} className="shrink-0" aria-hidden="true" />
+            {draft.linesManual ? t('invoice.linesManual') : t('invoice.linesAuto')}
+          </p>
+          {draft.linesManual && (
+            <Button size="sm" onClick={recalcLines}>
+              <RefreshCw size={16} aria-hidden="true" />
+              {t('invoice.recalcLines')}
+            </Button>
+          )}
+        </div>
         <div className="overflow-x-auto rounded-xl border border-line">
           <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-coral text-ink">
@@ -105,20 +163,20 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
                 <tr key={line.id} className="border-t border-line odd:bg-surface even:bg-peach-soft">
                   <td className="px-1 py-1">
                     <CellInput
-                      aria-label={`${t('common.description')} ${i + 1}`}
+                      aria-label={`${t('invoice.lines')} ${i + 1}: ${t('common.description')}`}
                       value={line.description}
                       onChange={(e) => setLine(line.id, { description: e.target.value })}
                     />
                   </td>
                   <td className="px-1 py-1">
-                    <NumberCell aria-label={`${t('common.hours')} ${i + 1}`} value={line.hours} onChange={(v) => setLine(line.id, { hours: v })} />
+                    <NumberCell aria-label={`${t('invoice.lines')} ${i + 1}: ${t('common.hours')}`} value={line.hours} onChange={(v) => setLine(line.id, { hours: v })} />
                   </td>
                   <td className="px-1 py-1">
-                    <NumberCell aria-label={`${t('invoice.rate')} ${i + 1}`} value={line.rate} onChange={(v) => setLine(line.id, { rate: v })} />
+                    <NumberCell aria-label={`${t('invoice.lines')} ${i + 1}: ${t('invoice.rate')}`} value={line.rate} onChange={(v) => setLine(line.id, { rate: v })} />
                   </td>
                   <td className="tabular px-3 py-1 text-right">{money(lineAmount(line.hours, line.rate))}</td>
                   <td className="px-1 py-1 text-right">
-                    <IconButton label={`${t('reports.removeRow')} ${i + 1}`} onClick={() => set('lines', draft.lines.filter((l) => l.id !== line.id))}>
+                    <IconButton label={`${t('reports.removeRow')} ${i + 1}`} onClick={() => setLines(draft.lines.filter((l) => l.id !== line.id))}>
                       <Trash2 size={16} aria-hidden="true" />
                     </IconButton>
                   </td>
@@ -176,28 +234,19 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
         title={t('invoice.timesheet')}
         icon={<Sheet size={20} />}
         actions={
-          <Button
-            size="sm"
-            onClick={() =>
-              set('timesheet', [
-                ...draft.timesheet,
-                {
-                  id: newId(),
-                  date: draft.timesheet.at(-1)?.date ?? draft.periodStart,
-                  start: '',
-                  end: '',
-                  hours: 0,
-                  category: profile?.categories[0] ?? '',
-                  description: '',
-                },
-              ])
-            }
-          >
+          <Button size="sm" onClick={addRow}>
             <Plus size={16} aria-hidden="true" />
             {t('reports.addRow')}
           </Button>
         }
       >
+        <p className="mb-3 flex items-center gap-2 text-sm text-muted">
+          <Link2 size={16} className="shrink-0" aria-hidden="true" />
+          {t('invoice.timesheetLinked')}
+        </p>
+        {hasUnlinked && (
+          <p className="mb-3 rounded-xl border border-peach bg-peach-soft px-3 py-2 text-sm text-ink">{t('invoice.timesheetUnlinked')}</p>
+        )}
         <div className="overflow-x-auto rounded-xl border border-line">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-coral text-ink">
@@ -227,13 +276,24 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
                     <NumberCell aria-label={`${t('common.hours')} ${i + 1}`} value={Math.round(row.hours * 100) / 100} onChange={(v) => setRow(row.id, { hours: v })} />
                   </td>
                   <td className="px-1 py-1">
-                    <CellInput aria-label={`${t('common.category')} ${i + 1}`} value={row.category} onChange={(e) => setRow(row.id, { category: e.target.value })} list="hb-categories" />
+                    <select
+                      aria-label={`${t('common.category')} ${i + 1}`}
+                      value={row.category}
+                      onChange={(e) => setRow(row.id, { category: e.target.value })}
+                      className="w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-ink hover:border-line focus:border-sky focus:bg-surface focus:outline-none focus:ring-2 focus:ring-sky/40"
+                    >
+                      {(categories.includes(row.category) ? categories : [row.category, ...categories]).map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-1 py-1">
                     <CellInput aria-label={`${t('common.description')} ${i + 1}`} value={row.description} onChange={(e) => setRow(row.id, { description: e.target.value })} />
                   </td>
                   <td className="px-1 py-1 text-right">
-                    <IconButton label={`${t('reports.removeRow')} ${i + 1}`} onClick={() => set('timesheet', draft.timesheet.filter((r) => r.id !== row.id))}>
+                    <IconButton label={`${t('reports.removeRow')} ${i + 1}`} onClick={() => removeRow(row)}>
                       <Trash2 size={16} aria-hidden="true" />
                     </IconButton>
                   </td>
@@ -248,11 +308,26 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
               </tr>
             </tfoot>
           </table>
-          <datalist id="hb-categories">
-            {profile?.categories.map((c) => <option key={c} value={c} />)}
-          </datalist>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={!!removing}
+        title={t('invoice.deleteRowTitle')}
+        body={t('invoice.deleteRowBody', {
+          date: removing ? formatDay(removing.row.date, language) : '',
+          hours: removing ? formatNumber(removing.row.hours, language) : '',
+        })}
+        confirmLabel={t('common.delete')}
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => {
+          if (removing) {
+            deleteEntry(removing.entry.id);
+            setTimesheet(draft.timesheet.filter((r) => r.id !== removing.row.id));
+          }
+          setRemoving(null);
+        }}
+      />
     </div>
   );
 }

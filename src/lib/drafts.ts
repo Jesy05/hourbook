@@ -1,10 +1,9 @@
 import { endOfMonth, format, parseISO } from 'date-fns';
 import {
-  categoryTotals,
+  timeToSeconds,
   formatInvoiceNumber,
   monthlyWeekBlocks,
   round2,
-  secondsToDecimalHours,
   SECONDS_PER_HOUR,
   weekStartOf,
   weeklyOvertimeSeconds,
@@ -13,7 +12,7 @@ import {
   invoiceTotals,
 } from './calc';
 import { newId } from './defaults';
-import type { Entry, InvoiceDraft, OvertimeDraft, Profile, RedeemedEntry } from './types';
+import type { Entry, InvoiceDraft, InvoiceLine, OvertimeDraft, Profile, RedeemedEntry, TimesheetRow } from './types';
 
 /* Builds editable report drafts from raw entries. Drafts never point back at entries. */
 
@@ -39,12 +38,7 @@ export function generateInvoiceDraft(
     .sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? '').localeCompare(b.start ?? ''));
   const now = Date.now();
   const rate = profile.invoice.rate;
-  const lines = categoryTotals(periodEntries).map((c) => ({
-    id: newId(),
-    description: c.category,
-    hours: secondsToDecimalHours(c.seconds),
-    rate,
-  }));
+  const timesheet = periodEntries.map((e) => entryToRow(e));
   return {
     id: existing?.id ?? newId(),
     profileId: profile.id,
@@ -62,16 +56,9 @@ export function generateInvoiceDraft(
     billTo: profile.invoice.billTo,
     currency: profile.invoice.currency,
     paymentDetails: profile.invoice.paymentDetails,
-    lines: lines.length ? lines : [{ id: newId(), description: profile.categories[0] ?? 'Services', hours: 0, rate }],
-    timesheet: periodEntries.map((e) => ({
-      id: newId(),
-      date: e.date,
-      start: e.start ?? '',
-      end: e.end ?? '',
-      hours: Math.round((e.seconds / SECONDS_PER_HOUR) * 10000) / 10000,
-      category: e.category,
-      description: e.description,
-    })),
+    linesManual: false,
+    lines: linesFromTimesheet(timesheet, [], rate, profile.categories[0] ?? 'Services'),
+    timesheet,
   };
 }
 
@@ -135,4 +122,63 @@ export function invoiceDraftTotals(draft: InvoiceDraft) {
     ...invoiceTotals(draft.lines),
     timesheetHours: round2(draft.timesheet.reduce((sum, row) => sum + row.hours, 0)),
   };
+}
+
+/* ---------- timesheet rows and tracker entries ---------- */
+
+const HOURS_PRECISION = 10000;
+
+export function entryToRow(entry: Entry): TimesheetRow {
+  return {
+    id: newId(),
+    entryId: entry.id,
+    date: entry.date,
+    start: entry.start ?? '',
+    end: entry.end ?? '',
+    hours: Math.round((entry.seconds / SECONDS_PER_HOUR) * HOURS_PRECISION) / HOURS_PRECISION,
+    category: entry.category,
+    description: entry.description,
+  };
+}
+
+/** The entry with the row's values, as saved back to the tracker. */
+export function rowToEntry(row: TimesheetRow, entry: Entry): Entry {
+  return {
+    ...entry,
+    date: row.date,
+    start: row.start || undefined,
+    end: row.end || undefined,
+    seconds: Math.max(0, Math.round(row.hours * SECONDS_PER_HOUR)),
+    category: row.category,
+    description: row.description,
+  };
+}
+
+/** Applies an edit to a row. Changing start or end recalculates the hours. */
+export function patchRow(row: TimesheetRow, patch: Partial<TimesheetRow>): TimesheetRow {
+  const next = { ...row, ...patch };
+  const timesChanged = patch.start !== undefined || patch.end !== undefined;
+  if (timesChanged && next.start && next.end && timeToSeconds(next.end) > timeToSeconds(next.start)) {
+    next.hours = Math.round(((timeToSeconds(next.end) - timeToSeconds(next.start)) / SECONDS_PER_HOUR) * HOURS_PRECISION) / HOURS_PRECISION;
+  }
+  return next;
+}
+
+/**
+ * One line item per category, in the order categories first appear in the
+ * timesheet. Rates already set on a line with the same name are kept.
+ */
+export function linesFromTimesheet(
+  rows: TimesheetRow[],
+  previous: InvoiceLine[],
+  defaultRate: number,
+  fallbackCategory: string,
+): InvoiceLine[] {
+  const totals = new Map<string, number>();
+  for (const row of rows) totals.set(row.category, (totals.get(row.category) ?? 0) + row.hours);
+  if (totals.size === 0) return [{ id: newId(), description: fallbackCategory, hours: 0, rate: defaultRate }];
+  return [...totals.entries()].map(([category, hours]) => {
+    const old = previous.find((l) => l.description === category);
+    return { id: old?.id ?? newId(), description: category, hours: round2(hours), rate: old?.rate ?? defaultRate };
+  });
 }

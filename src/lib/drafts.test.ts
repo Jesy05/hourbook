@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newProfile } from './defaults';
-import { generateInvoiceDraft, monthRange } from './drafts';
+import { generateInvoiceDraft, linesFromTimesheet, monthRange, patchRow, rowToEntry } from './drafts';
 import { formatPeriod, formatPeriodEnglish, isFullMonth } from './format';
 import { invoiceFileName } from './excel/invoice';
 import type { Entry } from './types';
@@ -72,5 +72,42 @@ describe('period labels and file names', () => {
     const range = generateInvoiceDraft(profile, entries, '2026-10-05', '2026-10-18', '2026-11-04');
     expect(invoiceFileName(month)).toBe('Jesy_Gonzalez_Invoice_2026-10.xlsx');
     expect(invoiceFileName(range)).toBe('Jesy_Gonzalez_Invoice_2026-10-05_to_2026-10-18.xlsx');
+  });
+});
+
+describe('timesheet rows linked to entries', () => {
+  const draft = generateInvoiceDraft(profile, entries, '2026-10-05', '2026-10-18', '2026-11-04');
+
+  it('links every row to the entry it came from', () => {
+    expect(draft.timesheet.map((r) => r.entryId)).toEqual(['first', 'middle', 'last']);
+    expect(draft.linesManual).toBe(false);
+  });
+
+  it('recalculates hours when start or end change, but not for other edits', () => {
+    const row = draft.timesheet[0];
+    expect(patchRow(row, { end: '12:30:00' }).hours).toBe(3.5);
+    expect(patchRow(row, { category: 'Meetings' }).hours).toBe(row.hours);
+    expect(patchRow(row, { end: '08:00:00' }).hours).toBe(row.hours); // end before start: keep hours
+  });
+
+  it('saves a row back to its entry', () => {
+    const row = patchRow(draft.timesheet[0], { category: 'Travel booking', description: 'Flights', end: '11:15:00' });
+    const updated = rowToEntry(row, entries[1]);
+    expect(updated).toMatchObject({ id: 'first', category: 'Travel booking', description: 'Flights', end: '11:15:00', seconds: 2.25 * 3600 });
+    expect(rowToEntry({ ...row, start: '', end: '' }, entries[1]).start).toBeUndefined();
+  });
+
+  it('builds one line per category and keeps rates already set', () => {
+    const rows = [
+      { ...draft.timesheet[0], category: 'Calendar', hours: 2 },
+      { ...draft.timesheet[1], category: 'Travel booking', hours: 1.5 },
+      { ...draft.timesheet[2], category: 'Calendar', hours: 4 },
+    ];
+    const lines = linesFromTimesheet(rows, [{ id: 'x', description: 'Travel booking', hours: 0, rate: 35 }], 20, 'Other');
+    expect(lines.map((l) => [l.description, l.hours, l.rate])).toEqual([
+      ['Calendar', 6, 20],
+      ['Travel booking', 1.5, 35],
+    ]);
+    expect(linesFromTimesheet([], [], 20, 'Other')).toMatchObject([{ description: 'Other', hours: 0, rate: 20 }]);
   });
 });
