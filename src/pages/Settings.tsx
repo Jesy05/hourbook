@@ -1,6 +1,7 @@
 import { Database, Download, Languages, LogOut, Trash2, TriangleAlert, Upload, UserRound } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { EntryFieldsSettings } from '../components/EntryFields';
 import { ProfileForm } from '../components/ProfileForm';
 import { useToast } from '../components/Toast';
 import { Button, Card, ConfirmDialog, Field, TextInput } from '../components/ui';
@@ -77,6 +78,8 @@ export function Settings() {
           ))}
         </div>
       </Card>
+
+      <EntryFieldsSettings />
 
       <section aria-labelledby="profile-heading" className="flex flex-col gap-4">
         <h2 id="profile-heading" className="text-xl font-semibold">

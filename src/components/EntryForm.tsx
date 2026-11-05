@@ -6,6 +6,7 @@ import { newId } from '../lib/defaults';
 import { shortTime } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Entry } from '../lib/types';
+import { EntryExtraFields, type ExtraFieldValues } from './EntryFields';
 import { useToast } from './Toast';
 import { Button, Field, Modal, Select, TextInput } from './ui';
 
@@ -37,6 +38,7 @@ function EntryFormInner({ entry, defaultDate, onClose }: { entry: Entry | null; 
   const [duration, setDuration] = useState(entry ? formatDuration(entry.seconds) : '1:00');
   const [description, setDescription] = useState(entry?.description ?? '');
   const [category, setCategory] = useState(entry?.category || categories[0] || '');
+  const [extra, setExtra] = useState<ExtraFieldValues>({ requestedBy: entry?.requestedBy, project: entry?.project, custom: entry?.custom });
   const [error, setError] = useState('');
   const [overlap, setOverlap] = useState<{ pending: Entry[]; list: string } | null>(null);
 
@@ -49,6 +51,9 @@ function EntryFormInner({ entry, defaultDate, onClose }: { entry: Entry | null; 
       profileId: profile.id,
       description: description.trim(),
       category,
+      requestedBy: extra.requestedBy?.trim() || undefined,
+      project: extra.project?.trim() || undefined,
+      custom: extra.custom && Object.keys(extra.custom).length ? extra.custom : undefined,
       createdAt: entry?.createdAt ?? Date.now(),
     };
     if (mode === 'duration') {
@@ -195,17 +200,22 @@ function EntryFormInner({ entry, defaultDate, onClose }: { entry: Entry | null; 
           <Field label={t('common.description')} className="sm:col-span-2">
             {(p) => <TextInput {...p} value={description} onChange={(e) => setDescription(e.target.value)} />}
           </Field>
-          <Field label={t('common.category')} className="sm:col-span-2">
-            {(p) => (
-              <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)}>
-                {(categories.includes(category) || !category ? categories : [category, ...categories]).map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
+          {profile.fields.category && (
+            <Field label={t('common.category')} className="sm:col-span-2">
+              {(p) => (
+                <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {(categories.includes(category) || !category ? categories : [category, ...categories]).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          )}
+          <div className="sm:col-span-2">
+            <EntryExtraFields profile={profile} values={extra} onChange={setExtra} />
+          </div>
           {error && (
             <p className="text-sm font-medium text-brand sm:col-span-2" role="alert">
               {error}

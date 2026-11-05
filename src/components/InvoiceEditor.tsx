@@ -7,6 +7,7 @@ import { formatDay, formatMoney, formatMoneyEnglish, formatNumber, formatPeriodE
 import { useStore } from '../lib/store';
 import type { Entry, InvoiceDraft, InvoiceLine, TimesheetRow } from '../lib/types';
 import { NumberCell } from './cells';
+import { ComboInput, CustomFieldInput } from './EntryFields';
 import { useToast } from './Toast';
 import { Button, Card, CellInput, ConfirmDialog, Field, IconButton, TextArea, TextInput } from './ui';
 
@@ -32,6 +33,11 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
   const [removing, setRemoving] = useState<{ row: TimesheetRow; entry: Entry } | null>(null);
 
   const categories = profile?.categories ?? [];
+  // A column shows when its field is on, or when rows already have values for it.
+  const showRequester = !!profile?.fields.requestedBy || draft.timesheet.some((r) => r.requestedBy);
+  const showProject = !!profile?.fields.project || draft.timesheet.some((r) => r.project);
+  const showCategory = !!profile?.fields.category;
+  const customFields = (profile?.customFields ?? []).filter((f) => f.enabled && f.name.trim());
   const defaultRate = draft.lines[0]?.rate ?? profile?.invoice.rate ?? 0;
   const entryFor = (row: TimesheetRow) => (row.entryId ? data.entries.find((e) => e.id === row.entryId) : undefined);
   const hasUnlinked = draft.timesheet.some((row) => !entryFor(row));
@@ -255,8 +261,15 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
                 <th scope="col" className={`${th} w-28`}>{t('common.start')}</th>
                 <th scope="col" className={`${th} w-28`}>{t('common.end')}</th>
                 <th scope="col" className={`${th} w-24 text-right`}>{t('common.hours')}</th>
-                <th scope="col" className={`${th} w-44`}>{t('common.category')}</th>
-                <th scope="col" className={th}>{t('common.description')}</th>
+                {showRequester && <th scope="col" className={`${th} w-48`}>{t('fields.requestedBy')}</th>}
+                {showProject && <th scope="col" className={`${th} w-48`}>{t('fields.project')}</th>}
+                {showCategory && <th scope="col" className={`${th} w-44`}>{t('common.category')}</th>}
+                <th scope="col" className={`${th} min-w-48`}>{t('common.description')}</th>
+                {customFields.map((f) => (
+                  <th key={f.id} scope="col" className={`${th} w-36`}>
+                    {f.name}
+                  </th>
+                ))}
                 <th scope="col" className="w-12"><span className="sr-only">{t('common.actions')}</span></th>
               </tr>
             </thead>
@@ -275,6 +288,29 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
                   <td className="px-1 py-1">
                     <NumberCell aria-label={`${t('common.hours')} ${i + 1}`} value={Math.round(row.hours * 100) / 100} onChange={(v) => setRow(row.id, { hours: v })} />
                   </td>
+                  {showRequester && (
+                    <td className="px-1 py-1">
+                      <ComboInput
+                        compact
+                        label={`${t('fields.requestedBy')} ${i + 1}`}
+                        value={row.requestedBy ?? ''}
+                        options={profile?.requesters ?? []}
+                        onChange={(v) => setRow(row.id, { requestedBy: v })}
+                      />
+                    </td>
+                  )}
+                  {showProject && (
+                    <td className="px-1 py-1">
+                      <ComboInput
+                        compact
+                        label={`${t('fields.project')} ${i + 1}`}
+                        value={row.project ?? ''}
+                        options={profile?.projects ?? []}
+                        onChange={(v) => setRow(row.id, { project: v })}
+                      />
+                    </td>
+                  )}
+                  {showCategory && (
                   <td className="px-1 py-1">
                     <select
                       aria-label={`${t('common.category')} ${i + 1}`}
@@ -289,9 +325,26 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
                       ))}
                     </select>
                   </td>
+                  )}
                   <td className="px-1 py-1">
                     <CellInput aria-label={`${t('common.description')} ${i + 1}`} value={row.description} onChange={(e) => setRow(row.id, { description: e.target.value })} />
                   </td>
+                  {customFields.map((f) => (
+                    <td key={f.id} className="px-1 py-1 text-center">
+                      <CustomFieldInput
+                        compact
+                        label={`${f.name} ${i + 1}`}
+                        field={f}
+                        value={row.custom?.[f.id]}
+                        onChange={(v) => {
+                          const custom = { ...(row.custom ?? {}) };
+                          if (v === undefined) delete custom[f.id];
+                          else custom[f.id] = v;
+                          setRow(row.id, { custom });
+                        }}
+                      />
+                    </td>
+                  ))}
                   <td className="px-1 py-1 text-right">
                     <IconButton label={`${t('reports.removeRow')} ${i + 1}`} onClick={() => removeRow(row)}>
                       <Trash2 size={16} aria-hidden="true" />
@@ -304,7 +357,7 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
               <tr className="border-t border-line bg-sky font-semibold text-ink">
                 <td className="px-3 py-2" colSpan={3}>{t('common.total')}</td>
                 <td className="tabular px-3 py-2 text-right">{formatNumber(totals.timesheetHours, language)}</td>
-                <td colSpan={3} />
+                <td colSpan={2 + Number(showRequester) + Number(showProject) + Number(showCategory) + customFields.length} />
               </tr>
             </tfoot>
           </table>

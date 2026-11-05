@@ -174,7 +174,15 @@ export function Tracker() {
                         {desc}
                       </p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
-                        <span className="rounded-full bg-sky-soft px-2 py-0.5 font-medium text-ink">{entry.category}</span>
+                        {profile.fields.category && (
+                          <span className="rounded-full bg-sky-soft px-2 py-0.5 font-medium text-ink">{entry.category}</span>
+                        )}
+                        {entry.requestedBy && (
+                          <span className="rounded-full bg-peach-soft px-2 py-0.5 font-medium text-ink">{entry.requestedBy}</span>
+                        )}
+                        {entry.project && (
+                          <span className="rounded-full border border-line px-2 py-0.5 font-medium text-ink">{entry.project}</span>
+                        )}
                         <span className="tabular">
                           {entry.start ? `${shortTime(entry.start)} - ${shortTime(entry.end)}` : t('entries.durationOnly')}
                         </span>

@@ -31,7 +31,7 @@ interface Store {
   pauseTimer: () => void;
   resumeTimer: () => void;
   stopTimer: () => StopResult;
-  setTimerFields: (fields: Partial<Pick<TimerState, 'description' | 'category'>>) => void;
+  setTimerFields: (fields: Partial<Pick<TimerState, 'description' | 'category' | 'requestedBy' | 'project' | 'custom'>>) => void;
   saveRedeemed: (item: RedeemedEntry) => void;
   deleteRedeemed: (id: string) => void;
   saveDraft: (draft: Draft) => void;
@@ -45,6 +45,40 @@ interface Store {
 }
 
 const StoreContext = createContext<Store | null>(null);
+
+/** The optional field values of a timer or entry, without empty ones. */
+function entryFieldValues(source: Pick<Entry, 'requestedBy' | 'project' | 'custom'>): Pick<Entry, 'requestedBy' | 'project' | 'custom'> {
+  const out: Pick<Entry, 'requestedBy' | 'project' | 'custom'> = {};
+  if (source.requestedBy?.trim()) out.requestedBy = source.requestedBy.trim();
+  if (source.project?.trim()) out.project = source.project.trim();
+  if (source.custom && Object.keys(source.custom).length) out.custom = { ...source.custom };
+  return out;
+}
+
+/** Adds any new value to a saved list, ignoring case and blanks. */
+function remember(list: string[], values: (string | undefined)[]): string[] {
+  const next = [...list];
+  for (const value of values) {
+    const v = value?.trim();
+    if (v && !next.some((x) => x.toLowerCase() === v.toLowerCase())) next.push(v);
+  }
+  return next;
+}
+
+/**
+ * New entries list, plus the profiles with any new "Requested by" or "Project"
+ * values from the changed entries added to their saved lists.
+ */
+function withEntries(d: AppData, entries: Entry[], changed: Entry[]): Pick<AppData, 'entries' | 'profiles'> {
+  const profiles = d.profiles.map((p) => {
+    const mine = changed.filter((e) => e.profileId === p.id);
+    if (!mine.length) return p;
+    const requesters = remember(p.requesters, mine.map((e) => e.requestedBy));
+    const projects = remember(p.projects, mine.map((e) => e.project));
+    return requesters.length === p.requesters.length && projects.length === p.projects.length ? p : { ...p, requesters, projects };
+  });
+  return { entries, profiles };
+}
 
 export function StoreProvider({
   children,
@@ -139,13 +173,18 @@ export function StoreProvider({
       seconds: e.seconds,
       description: timer.description.trim(),
       category: timer.category,
+      ...entryFieldValues(timer),
       createdAt: now,
     }));
     const keep = total >= MIN_ENTRY_SECONDS && entries.length > 0;
     update((d) => ({
       ...d,
-      entries: keep ? [...d.entries, ...entries] : d.entries,
-      timers: { ...d.timers, [profileId]: { ...idleTimer(timer.category), category: timer.category } },
+      ...(keep ? withEntries(d, [...d.entries, ...entries], entries) : {}),
+      // Only the description is cleared: the next task is often for the same person and project.
+      timers: {
+        ...d.timers,
+        [profileId]: { ...idleTimer(timer.category), requestedBy: timer.requestedBy, project: timer.project, custom: timer.custom },
+      },
     }));
     if (entries.length === 0) return { kind: 'none' };
     return keep ? { kind: 'saved', entries } : { kind: 'discarded', entries };
@@ -184,11 +223,11 @@ export function StoreProvider({
           };
         }),
       setActiveProfile: (id) => update((d) => ({ ...d, activeProfileId: id })),
-      addEntries: (entries) => update((d) => ({ ...d, entries: [...d.entries, ...entries] })),
+      addEntries: (entries) => update((d) => ({ ...d, ...withEntries(d, [...d.entries, ...entries], entries) })),
       updateEntry: (entry) =>
-        update((d) => ({ ...d, entries: d.entries.map((x) => (x.id === entry.id ? entry : x)) })),
+        update((d) => ({ ...d, ...withEntries(d, d.entries.map((x) => (x.id === entry.id ? entry : x)), [entry]) })),
       replaceEntry: (id, entries) =>
-        update((d) => ({ ...d, entries: [...d.entries.filter((x) => x.id !== id), ...entries] })),
+        update((d) => ({ ...d, ...withEntries(d, [...d.entries.filter((x) => x.id !== id), ...entries], entries) })),
       deleteEntry: (id) => update((d) => ({ ...d, entries: d.entries.filter((x) => x.id !== id) })),
       timer: data.timers[profileId],
       startTimer: () =>

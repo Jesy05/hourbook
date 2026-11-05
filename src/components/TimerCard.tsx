@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { formatDuration } from '../lib/calc';
 import { useStore } from '../lib/store';
 import { elapsedSeconds, isTimerActive } from '../lib/timer';
+import { EntryExtraFields } from './EntryFields';
 import { useToast } from './Toast';
 import { Button, Field, Select, TextInput } from './ui';
 
@@ -91,7 +92,9 @@ export function TimerCard() {
         </div>
 
         <div className="flex w-full flex-col gap-4 lg:max-w-md">
-          <div className={`grid gap-3 sm:grid-cols-[1fr_auto] ${running ? '[&_label]:text-white' : ''}`}>
+          <div
+            className={`grid gap-3 ${profile.fields.category ? 'sm:grid-cols-[1fr_auto]' : ''} ${running ? '[&_label]:text-white' : ''}`}
+          >
             <Field label={t('timer.what')}>
               {(p) => (
                 <TextInput
@@ -105,18 +108,27 @@ export function TimerCard() {
                 />
               )}
             </Field>
-            <Field label={t('common.category')}>
-              {(p) => (
-                <Select {...p} value={category} onChange={(e) => setTimerFields({ category: e.target.value })}>
-                  {categories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
+            {profile.fields.category && (
+              <Field label={t('common.category')}>
+                {(p) => (
+                  <Select {...p} value={category} onChange={(e) => setTimerFields({ category: e.target.value })}>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            )}
           </div>
+
+          <EntryExtraFields
+            profile={profile}
+            values={{ requestedBy: timer?.requestedBy, project: timer?.project, custom: timer?.custom }}
+            onChange={(values) => setTimerFields(values)}
+            invertLabels={running}
+          />
 
           <div className="flex flex-wrap gap-2" role="group" aria-label={t('timer.title')}>
             {!active && (

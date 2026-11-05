@@ -160,6 +160,9 @@ export function entryToRow(entry: Entry): TimesheetRow {
     hours: Math.round((entry.seconds / SECONDS_PER_HOUR) * HOURS_PRECISION) / HOURS_PRECISION,
     category: entry.category,
     description: entry.description,
+    ...(entry.requestedBy ? { requestedBy: entry.requestedBy } : {}),
+    ...(entry.project ? { project: entry.project } : {}),
+    ...(entry.custom ? { custom: { ...entry.custom } } : {}),
   };
 }
 
@@ -173,6 +176,9 @@ export function rowToEntry(row: TimesheetRow, entry: Entry): Entry {
     seconds: Math.max(0, Math.round(row.hours * SECONDS_PER_HOUR)),
     category: row.category,
     description: row.description,
+    requestedBy: row.requestedBy?.trim() || undefined,
+    project: row.project?.trim() || undefined,
+    custom: row.custom && Object.keys(row.custom).length ? row.custom : undefined,
   };
 }
 
