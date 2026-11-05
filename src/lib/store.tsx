@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { newId } from './defaults';
+import { addProfileValue, rememberEntryValues, renameValue, type ListField } from './fieldValues';
 import { translate, type MessageKey } from './i18n';
 import { api, type Session } from './api';
 import { clearData, clearSyncMeta, emptyData, loadData, saveData, STORAGE_KEY, validateData } from './storage';
@@ -20,6 +21,10 @@ interface Store {
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
   setLanguage: (language: Language) => void;
   saveProfile: (profile: Profile) => void;
+  /** Saves a Requested by / Project value to the active profile's list; returns the saved spelling. */
+  addFieldValue: (field: ListField, value: string) => string;
+  /** Renames a value in the active profile and in every entry that uses it. */
+  renameFieldValue: (field: ListField, from: string, to: string) => void;
   deleteProfile: (id: string) => void;
   setActiveProfile: (id: string) => void;
   addEntries: (entries: Entry[]) => void;
@@ -55,29 +60,21 @@ function entryFieldValues(source: Pick<Entry, 'requestedBy' | 'project' | 'custo
   return out;
 }
 
-/** Adds any new value to a saved list, ignoring case and blanks. */
-function remember(list: string[], values: (string | undefined)[]): string[] {
-  const next = [...list];
-  for (const value of values) {
-    const v = value?.trim();
-    if (v && !next.some((x) => x.toLowerCase() === v.toLowerCase())) next.push(v);
-  }
-  return next;
-}
-
 /**
  * New entries list, plus the profiles with any new "Requested by" or "Project"
- * values from the changed entries added to their saved lists.
+ * values from the changed entries added to their saved lists. The changed
+ * entries are stored with the saved spelling ("naima " -> "Naima").
  */
 function withEntries(d: AppData, entries: Entry[], changed: Entry[]): Pick<AppData, 'entries' | 'profiles'> {
+  const fixed = new Map<string, Entry>();
   const profiles = d.profiles.map((p) => {
     const mine = changed.filter((e) => e.profileId === p.id);
     if (!mine.length) return p;
-    const requesters = remember(p.requesters, mine.map((e) => e.requestedBy));
-    const projects = remember(p.projects, mine.map((e) => e.project));
-    return requesters.length === p.requesters.length && projects.length === p.projects.length ? p : { ...p, requesters, projects };
+    const result = rememberEntryValues(p, mine);
+    result.entries.forEach((e) => fixed.set(e.id, e));
+    return result.profile;
   });
-  return { entries, profiles };
+  return { entries: fixed.size ? entries.map((e) => fixed.get(e.id) ?? e) : entries, profiles };
 }
 
 export function StoreProvider({
@@ -207,6 +204,16 @@ export function StoreProvider({
             activeProfileId: exists ? d.activeProfileId : p.id,
           };
         }),
+      addFieldValue: (field, value) => {
+        const current = data.profiles.find((x) => x.id === profileId);
+        const saved = current ? addProfileValue(current, field, value).value : value.trim();
+        update((d) => ({
+          ...d,
+          profiles: d.profiles.map((x) => (x.id === profileId ? addProfileValue(x, field, value).profile : x)),
+        }));
+        return saved;
+      },
+      renameFieldValue: (field, from, to) => update((d) => renameValue(d, profileId, field, from, to)),
       deleteProfile: (id) =>
         update((d) => {
           const profiles = d.profiles.filter((x) => x.id !== id);

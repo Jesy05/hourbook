@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ProfileForm } from '../components/ProfileForm';
 import { Button } from '../components/ui';
-import { newProfile } from '../lib/defaults';
+import { defaultFields, newProfile } from '../lib/defaults';
 import { useStore } from '../lib/store';
 
 export function Setup() {
@@ -46,7 +46,7 @@ export function Setup() {
             adding && data.profiles.length > 0 ? <Button onClick={() => navigate(-1)}>{t('common.cancel')}</Button> : null
           }
           onSubmit={(profile) => {
-            saveProfile(profile);
+            saveProfile({ ...profile, fields: defaultFields(profile.invoiceMode) });
             setActiveProfile(profile.id);
             navigate('/');
           }}

@@ -1,4 +1,5 @@
 import { defaultFields, defaultInvoiceSettings, defaultSections, defaultTemplates, defaultTerms, emptyBusiness } from './defaults';
+import { dedupeValues, findValue } from './fieldValues';
 import type {
   Adjustment,
   BusinessDetails,
@@ -174,6 +175,11 @@ export function normalizeInvoiceSettings(value: unknown, profileName: string, le
   };
 }
 
+/** Pins that still point to a saved value, with its saved spelling. */
+function pinnedIn(pinned: string[], list: string[]): string[] {
+  return dedupeValues(pinned.map((v) => findValue(list, v)).filter((v): v is string => v !== undefined));
+}
+
 export function normalizeProfile(value: Profile): Profile {
   const p = value as unknown as Loose;
   const name = str(p.name);
@@ -183,8 +189,10 @@ export function normalizeProfile(value: Profile): Profile {
     invoice: normalizeInvoiceSettings(p.invoice, name, str(p.contact)),
     categories: strList(p.categories).length ? strList(p.categories) : ['Other'],
     fields: { ...defaultFields(), ...(obj(p.fields) as Partial<Profile['fields']>) },
-    requesters: strList(p.requesters),
-    projects: strList(p.projects),
+    requesters: dedupeValues(strList(p.requesters)),
+    projects: dedupeValues(strList(p.projects)),
+    pinnedRequesters: pinnedIn(strList(p.pinnedRequesters), strList(p.requesters)),
+    pinnedProjects: pinnedIn(strList(p.pinnedProjects), strList(p.projects)),
     customFields: list(p.customFields, normalizeCustomField),
   };
 }

@@ -103,6 +103,8 @@ export function Settings() {
               invoiceMode: next.invoiceMode,
               overtimeMode: next.overtimeMode,
               overtime: next.overtime,
+              // Turning invoice mode on also turns on the fields the invoice lines use.
+              fields: next.invoiceMode && !profile.invoiceMode ? { ...profile.fields, requestedBy: true, project: true } : profile.fields,
             });
             toast(t('settings.saved'));
           }}

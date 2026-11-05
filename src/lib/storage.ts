@@ -7,7 +7,7 @@ import type { AppData } from './types';
  */
 
 export const STORAGE_KEY = 'hourbook:data';
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export function emptyData(): AppData {
   return {
@@ -56,6 +56,9 @@ export function clearData(): void {
  * v0 -> v1: fill the top-level collections.
  * v1 -> v2: profile and invoice draft fields, done in migrate.ts (it also runs
  * on current data, where it changes nothing).
+ * v2 -> v3: pinned Requested by / Project values (filled by migrate.ts), and
+ * those two fields turned on for invoice profiles, which use them in the
+ * invoice lines. Entries keep their values; entries without them stay empty.
  */
 function migrate(data: Record<string, unknown>): Record<string, unknown> {
   const version = typeof data.version === 'number' ? data.version : 0;
@@ -64,6 +67,18 @@ function migrate(data: Record<string, unknown>): Record<string, unknown> {
   }
   if (version < 2) {
     data = { ...data, version: 2 };
+  }
+  if (version < 3) {
+    const profiles = Array.isArray(data.profiles) ? data.profiles : [];
+    data = {
+      ...data,
+      version: 3,
+      profiles: profiles.map((p) =>
+        isObject(p) && p.invoiceMode === true
+          ? { ...p, fields: { ...(isObject(p.fields) ? p.fields : {}), requestedBy: true, project: true } }
+          : p,
+      ),
+    };
   }
   return data;
 }

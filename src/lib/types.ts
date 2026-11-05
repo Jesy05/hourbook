@@ -164,6 +164,9 @@ export interface Profile {
   /** Saved values for the "Requested by" and "Project" pickers. */
   requesters: string[];
   projects: string[];
+  /** Favorites shown first in the pickers, in this order. */
+  pinnedRequesters: string[];
+  pinnedProjects: string[];
   customFields: CustomField[];
   /** Last Excel palette used, offered for the next report. */
   excelPalette?: ExcelPalette;

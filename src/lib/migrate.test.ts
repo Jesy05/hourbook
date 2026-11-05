@@ -80,7 +80,7 @@ describe('migration from schema v1 to v2', () => {
 
   it('upgrades the version and keeps every entry as it was', () => {
     expect(migrated.version).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(2);
+    expect(SCHEMA_VERSION).toBe(3);
     expect(migrated.entries).toEqual(v1.entries);
   });
 
@@ -100,8 +100,9 @@ describe('migration from schema v1 to v2', () => {
     expect(profile.invoice.terms.preset).toBe('receipt');
     expect(profile.invoice.rounding).toBe('none');
     expect(profile.invoice.templates.map((t) => t.id)).toEqual(['tpl-category', 'tpl-daily']);
-    expect(profile.fields).toEqual({ category: true, requestedBy: false, project: false });
-    expect(profile).toMatchObject({ requesters: [], projects: [], customFields: [], categories: ['Calendar', 'Other'] });
+    // Invoice profile: Requested by and Project are turned on (schema v3).
+    expect(profile.fields).toEqual({ category: true, requestedBy: true, project: true });
+    expect(profile).toMatchObject({ requesters: [], projects: [], pinnedRequesters: [], pinnedProjects: [], customFields: [], categories: ['Calendar', 'Other'] });
     expect(profile.customPalette?.title).toBe('#7A1F5C');
   });
 
@@ -122,5 +123,44 @@ describe('migration from schema v1 to v2', () => {
 
   it('refuses data from a newer version of the app', () => {
     expect(validateData({ ...structuredClone(v1), version: SCHEMA_VERSION + 1 })).toBeNull();
+  });
+});
+
+describe('migration from schema v2 to v3', () => {
+  const v2 = {
+    ...structuredClone(v1),
+    version: 2,
+    profiles: [
+      {
+        ...structuredClone(v1.profiles[0]),
+        fields: { category: true, requestedBy: false, project: false },
+        requesters: ['Naima', 'naima ', 'Jaimie'],
+        projects: ['NYC Glamsquad event (Nov 2)'],
+        customFields: [],
+      },
+      { ...structuredClone(v1.profiles[0]), id: 'p2', invoiceMode: false, overtimeMode: true, fields: { category: true, requestedBy: false, project: false } },
+    ],
+    entries: [
+      ...v1.entries,
+      { id: 'e2', profileId: 'p1', date: '2026-10-30', seconds: 3600, description: 'Budget', category: 'Other', requestedBy: 'Naima', project: 'NYC Glamsquad event (Nov 2)', createdAt: 0 },
+    ],
+  };
+  const migrated = validateData(structuredClone(v2))!;
+
+  it('turns the fields on for invoice profiles only', () => {
+    expect(migrated.version).toBe(3);
+    expect(migrated.profiles[0].fields).toEqual({ category: true, requestedBy: true, project: true });
+    expect(migrated.profiles[1].fields).toEqual({ category: true, requestedBy: false, project: false });
+  });
+
+  it('adds empty pins, removes duplicate saved values and loses nothing', () => {
+    expect(migrated.profiles[0]).toMatchObject({ requesters: ['Naima', 'Jaimie'], projects: ['NYC Glamsquad event (Nov 2)'], pinnedRequesters: [], pinnedProjects: [] });
+    expect(migrated.entries).toEqual(v2.entries); // entries without values stay empty
+  });
+
+  it('keeps the lists and values in a backup round trip', async () => {
+    const { backupFileContent, parseBackup } = await import('./storage');
+    const withPins = { ...migrated, profiles: [{ ...migrated.profiles[0], pinnedProjects: ['NYC Glamsquad event (Nov 2)'] }, migrated.profiles[1]] };
+    expect(parseBackup(backupFileContent(withPins))).toEqual(withPins);
   });
 });

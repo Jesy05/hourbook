@@ -87,8 +87,9 @@ export function defaultTerms(): PaymentTerms {
   return { preset: 'receipt', customText: '', customDays: null };
 }
 
-export function defaultFields(): EntryFieldSettings {
-  return { category: true, requestedBy: false, project: false };
+/** Requested by and Project start on for invoice profiles, where the invoice lines use them. */
+export function defaultFields(invoiceMode = false): EntryFieldSettings {
+  return { category: true, requestedBy: invoiceMode, project: invoiceMode };
 }
 
 export function defaultInvoiceSettings(name = ''): InvoiceSettings {
@@ -138,6 +139,8 @@ export function newProfile(): Profile {
     fields: defaultFields(),
     requesters: [],
     projects: [],
+    pinnedRequesters: [],
+    pinnedProjects: [],
     customFields: [],
     createdAt: Date.now(),
   };

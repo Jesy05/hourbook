@@ -96,6 +96,13 @@ describe('description templates', () => {
     expect(buildLines(rows, daily, ctx, { rounding: 'none', customFields: [] })[0].description).toBe('10/29/26 | Naima - NYC Glamsquad event | 4.18 hours');
   });
 
+  it('renders the client example with a project name in parentheses', () => {
+    const rows = [row('a', '2026-10-29', 15051 / 3600, 'Naima', 'NYC Glamsquad event (Nov 2)')];
+    expect(buildLines(rows, daily, ctx, { rounding: 'none', customFields: [] })[0].description).toBe(
+      '10/29/26 | Naima - NYC Glamsquad event (Nov 2) | 4.18 hours',
+    );
+  });
+
   it('drops empty values with their separator', () => {
     const tpl = '{date} | {requestedBy} - {project} | {hours} hours';
     expect(renderDescription(tpl, { ...values, requestedBy: '' }, opts)).toBe('10/29/26 | NYC Glamsquad event | 4.18 hours');
