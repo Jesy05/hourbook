@@ -59,6 +59,22 @@ export function defaultTemplates(): InvoiceTemplate[] {
   ];
 }
 
+/** Original names of the starter templates, in each language. */
+const STARTER_NAMES: Record<string, { es: string; en: string }> = {
+  'tpl-category': { es: 'Por categoría', en: 'By category' },
+  'tpl-daily': { es: 'Mensual - por día', en: 'Monthly - by day' },
+};
+
+/**
+ * Name to show for a template. Starter templates that still have their
+ * original name follow the interface language; renamed ones show as typed.
+ */
+export function templateName(template: { id: string; name: string }, language: 'es' | 'en'): string {
+  const starter = STARTER_NAMES[template.id];
+  if (starter && (template.name === starter.es || template.name === starter.en)) return starter[language];
+  return template.name;
+}
+
 export function emptyBusiness(name = ''): BusinessDetails {
   return { name, address: '', email: '', phone: '', taxId: '' };
 }

@@ -204,3 +204,14 @@ describe('file names', () => {
     expect(safeFilePart('a/b\\c:d*e?"f<g>h|i')).toBe('abcdefghi');
   });
 });
+
+describe('starter template names', () => {
+  it('follow the interface language until renamed', async () => {
+    const { templateName } = await import('../defaults');
+    expect(templateName({ id: 'tpl-daily', name: 'Mensual - por día' }, 'en')).toBe('Monthly - by day');
+    expect(templateName({ id: 'tpl-category', name: 'Por categoría' }, 'en')).toBe('By category');
+    expect(templateName({ id: 'tpl-category', name: 'By category' }, 'es')).toBe('Por categoría');
+    expect(templateName({ id: 'tpl-daily', name: 'Naima monthly' }, 'en')).toBe('Naima monthly');
+    expect(templateName({ id: 'abc', name: 'Mensual - por día' }, 'en')).toBe('Mensual - por día');
+  });
+});

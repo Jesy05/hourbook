@@ -3,6 +3,7 @@ import { FilePlus2, FileSpreadsheet, FolderOpen, Receipt, Trash2, TrendingUp } f
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, ConfirmDialog, EmptyState, Field, IconButton, Select, TextInput } from '../components/ui';
+import { templateName } from '../lib/defaults';
 import { generateInvoiceDraft, generateOvertimeDraft, monthRange } from '../lib/drafts';
 import { dateLocale, formatPeriod } from '../lib/format';
 import type { MessageKey } from '../lib/i18n';
@@ -146,7 +147,7 @@ export function Reports() {
                         <Select {...p} value={templateId ?? ''} onChange={(e) => setTemplateId(e.target.value || null)}>
                           {profile.invoice.templates.map((tpl) => (
                             <option key={tpl.id} value={tpl.id}>
-                              {tpl.name}
+                              {templateName(tpl, language)}
                             </option>
                           ))}
                         </Select>

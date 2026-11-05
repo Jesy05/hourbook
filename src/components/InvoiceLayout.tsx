@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, LayoutTemplate, Save, Star, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { newId } from '../lib/defaults';
+import { newId, templateName } from '../lib/defaults';
 import type { MessageKey } from '../lib/i18n';
 import { BUILT_IN_TOKENS, DATE_FORMATS, formatInvoiceDate } from '../lib/invoice/template';
 import { useStore } from '../lib/store';
@@ -48,7 +48,7 @@ export function InvoiceLayout({
   previewLine: string;
   onChange: (template: InvoiceTemplate) => void;
 }) {
-  const { t, saveProfile } = useStore();
+  const { t, language, saveProfile } = useStore();
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [newName, setNewName] = useState('');
@@ -113,7 +113,7 @@ export function InvoiceLayout({
               {!savedMatch && <option value="">{t('layout.unsaved')}</option>}
               {saved.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {templateName(s, language)}
                   {s.id === profile.invoice.defaultTemplateId ? ` (${t('layout.default')})` : ''}
                 </option>
               ))}
@@ -125,7 +125,7 @@ export function InvoiceLayout({
             size="sm"
             onClick={() => {
               saveTemplates(saved.map((s) => (s.id === template.id ? { ...template, name: s.name } : s)));
-              toast(t('layout.updated', { name: savedMatch.name }));
+              toast(t('layout.updated', { name: templateName(savedMatch, language) }));
             }}
           >
             <Save size={16} aria-hidden="true" />
@@ -140,11 +140,11 @@ export function InvoiceLayout({
         )}
         {savedMatch && (
           <IconButton
-            label={t('layout.delete', { name: savedMatch.name })}
+            label={t('layout.delete', { name: templateName(savedMatch, language) })}
             onClick={() => {
               const rest = saved.filter((s) => s.id !== template.id);
               saveTemplates(rest, isDefault ? (rest[0]?.id ?? null) : profile.invoice.defaultTemplateId);
-              toast(t('layout.deleted', { name: savedMatch.name }));
+              toast(t('layout.deleted', { name: templateName(savedMatch, language) }));
             }}
           >
             <Trash2 size={16} aria-hidden="true" />
