@@ -1,3 +1,4 @@
+import { linesForDraft } from './drafts';
 import type { AppData, Entry, InvoiceDraft, InvoiceTemplate, Profile, TimesheetRow } from './types';
 
 /*
@@ -184,7 +185,10 @@ export function renameValue(data: AppData, profileId: string, field: ListField, 
   const timers = timer && valueKey(timer[field]) === fromKey ? { ...data.timers, [profileId]: { ...timer, [field]: value } } : data.timers;
   const drafts = data.drafts.map((d) => {
     if (d.type !== 'invoice' || d.profileId !== profileId || !d.timesheet.some((r) => valueKey(r[field]) === fromKey)) return d;
-    return { ...d, timesheet: d.timesheet.map((r) => (valueKey(r[field]) === fromKey ? { ...r, [field]: value } : r)) } as InvoiceDraft;
+    const next = { ...d, timesheet: d.timesheet.map((r) => (valueKey(r[field]) === fromKey ? { ...r, [field]: value } : r)) } as InvoiceDraft;
+    // Lines that follow the timesheet show the new name too; hand-edited lines are left alone.
+    const owner = profiles.find((p) => p.id === profileId);
+    return next.linesManual || !owner ? next : { ...next, lines: linesForDraft(next, owner) };
   });
   return { ...data, profiles, entries, timers, drafts };
 }

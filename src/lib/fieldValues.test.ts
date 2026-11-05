@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultTemplates, newProfile } from './defaults';
-import { entryToRow, patchRow, rowToEntry } from './drafts';
+import { entryToRow, generateInvoiceDraft, patchRow, rowToEntry } from './drafts';
 import {
   addProfileValue,
   addValue,
@@ -90,6 +90,7 @@ describe('renaming and deleting values', () => {
       id: 'd1',
       profileId: 'p1',
       type: 'invoice',
+      linesManual: true,
       timesheet: [entryToRow(entry('a', '2026-10-29', 'naima', 'NYC'))],
     } as unknown as InvoiceDraft;
     return {
@@ -117,6 +118,15 @@ describe('renaming and deleting values', () => {
     expect(next.profiles[0]).toMatchObject({ requesters: ['Naima W.', 'Jaimie'], pinnedRequesters: ['Naima W.'] });
     expect(next.timers.p1.requestedBy).toBe('Naima W.');
     expect((next.drafts[0] as InvoiceDraft).timesheet[0].requestedBy).toBe('Naima W.');
+  });
+
+  it('renaming rebuilds invoice lines that follow the timesheet', () => {
+    const p = profile({ requesters: ['Naima'], projects: ['NYC'] });
+    const entries = [entry('a', '2026-10-29', 'Naima', 'NYC', { start: '07:00:28', end: '11:11:19', seconds: 15051 })];
+    const draft = generateInvoiceDraft(p, entries, '2026-10-01', '2026-10-31', '2026-10-31', undefined, { templateId: 'tpl-daily' });
+    expect(draft.lines[0].description).toBe('10/29/26 | Naima - NYC | 4.18 hours');
+    const next = renameValue({ ...emptyData(), profiles: [p], entries, drafts: [draft] }, 'p1', 'project', 'NYC', 'NYC Glamsquad event (Nov 2)');
+    expect((next.drafts[0] as InvoiceDraft).lines[0].description).toBe('10/29/26 | Naima - NYC Glamsquad event (Nov 2) | 4.18 hours');
   });
 
   it('renaming onto an existing value merges the two', () => {

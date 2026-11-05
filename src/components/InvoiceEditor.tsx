@@ -1,5 +1,5 @@
-import { Calculator, Copy, FileText, Info, Link2, ListOrdered, Mail, PackagePlus, Plus, RefreshCw, Sheet, Trash2, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
+import { Calculator, CheckSquare, Copy, FileText, Info, Link2, ListOrdered, Mail, PackagePlus, Plus, RefreshCw, Sheet, Trash2, TriangleAlert } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { newId } from '../lib/defaults';
 import { entryToRow, invoiceDraftTotals, linesForDraft, patchRow, rowToEntry } from '../lib/drafts';
 import { formatDay, formatNumber, formatPeriodEnglish } from '../lib/format';
@@ -8,11 +8,13 @@ import { extraAmount, lineAmount, servicePeriod } from '../lib/invoice/lines';
 import { formatCurrency } from '../lib/invoice/money';
 import { dueDate, TERMS_PRESETS, termsLabel } from '../lib/invoice/terms';
 import { formatInvoiceDate } from '../lib/invoice/template';
+import { missingTemplateFields, templateListFields, type ListField, type MissingField } from '../lib/fieldValues';
 import type { MessageKey } from '../lib/i18n';
 import { useStore } from '../lib/store';
 import type { Entry, ExtraLine, InvoiceDraft, InvoiceLine, Profile, TimesheetRow } from '../lib/types';
 import { NumberCell } from './cells';
-import { ComboInput, CustomFieldInput } from './EntryFields';
+import { FieldValueInput } from './Combobox';
+import { CustomFieldInput } from './EntryFields';
 import { InvoiceLayout } from './InvoiceLayout';
 import { AdjustmentList, ROUNDING_RULES } from './InvoiceSettings';
 import { useToast } from './Toast';
@@ -44,14 +46,18 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
   const { t, language, profile, data, addEntries, updateEntry, deleteEntry } = useStore();
   const toast = useToast();
   const [removing, setRemoving] = useState<{ row: TimesheetRow; entry: Entry } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const timesheetRef = useRef<HTMLDivElement>(null);
   if (!profile) return null;
 
   const totals = invoiceDraftTotals(draft);
   const email = invoiceEmail(draft);
   const money = (n: number) => formatCurrency(n, draft.currency, draft.currencySymbol);
   const categories = profile.categories;
-  const showRequester = profile.fields.requestedBy || draft.timesheet.some((r) => r.requestedBy);
-  const showProject = profile.fields.project || draft.timesheet.some((r) => r.project);
+  const usedByTemplate = templateListFields(draft.template);
+  const missing = missingTemplateFields(draft.template, draft.timesheet);
+  const showRequester = profile.fields.requestedBy || usedByTemplate.includes('requestedBy') || draft.timesheet.some((r) => r.requestedBy);
+  const showProject = profile.fields.project || usedByTemplate.includes('project') || draft.timesheet.some((r) => r.project);
   const showCategory = profile.fields.category;
   const customFields = profile.customFields.filter((f) => f.enabled && f.name.trim());
   const entryFor = (row: TimesheetRow) => (row.entryId ? data.entries.find((e) => e.id === row.entryId) : undefined);
@@ -81,6 +87,23 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
     const entry = row && entryFor(row);
     if (row && entry) updateEntry(rowToEntry(row, entry));
     update({ timesheet });
+  };
+
+  /** Bulk fill: one value for several rows, saved to their entries too. */
+  const setRows = (ids: Set<string>, patch: Partial<TimesheetRow>) => {
+    const timesheet = draft.timesheet.map((r) => (ids.has(r.id) ? patchRow(r, patch) : r));
+    for (const row of timesheet) {
+      const entry = ids.has(row.id) ? entryFor(row) : undefined;
+      if (entry) updateEntry(rowToEntry(row, entry));
+    }
+    update({ timesheet });
+  };
+
+  /** Selects the rows missing a value and takes the user to the bulk fill bar. */
+  const fillMissing = (item: MissingField) => {
+    setSelected(new Set(item.rowIds));
+    timesheetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => document.getElementById(`bulk-${item.field}`)?.focus({ preventScroll: true }), 500);
   };
 
   const addRow = () => {
@@ -198,6 +221,33 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
         onChange={(template) => update({ template })}
       />
 
+      {missing.length > 0 && (
+        <div role="status" className="flex flex-col gap-3 rounded-2xl border border-coral bg-coral-soft p-4 text-sm text-ink">
+          <p className="flex items-center gap-2 font-semibold">
+            <TriangleAlert size={18} className="shrink-0 text-brand" aria-hidden="true" />
+            {t('invoice.missingTitle')}
+          </p>
+          <ul className="flex flex-col gap-2">
+            {missing.map((item) => (
+              <li key={item.field} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 break-words">
+                  {t('invoice.missingField', {
+                    field: t(item.field === 'requestedBy' ? 'fields.requestedBy' : 'fields.project'),
+                    count: item.rowIds.length,
+                    dates: item.dates.map((d) => formatInvoiceDate(d, draft.template.dateFormat)).join(', '),
+                  })}
+                </span>
+                <Button size="sm" onClick={() => fillMissing(item)}>
+                  <CheckSquare size={16} aria-hidden="true" />
+                  {t('invoice.missingFill')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted">{t('invoice.missingHint')}</p>
+        </div>
+      )}
+
       <Card
         title={t('invoice.lines')}
         icon={<ListOrdered size={20} />}
@@ -220,7 +270,7 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
             </Button>
           )}
         </div>
-        <div className="overflow-x-auto rounded-xl border border-line">
+        <div className="relative overflow-x-auto rounded-xl border border-line">
           <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-coral text-ink">
               <tr>
@@ -282,7 +332,7 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
       >
         <p className="mb-3 text-sm text-muted">{t('invoice.extrasHint')}</p>
         {draft.extraLines.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-line">
+          <div className="relative overflow-x-auto rounded-xl border border-line">
             <table className="w-full min-w-[520px] text-sm">
               <thead className="bg-coral text-ink">
                 <tr>
@@ -389,6 +439,11 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
       </Card>
 
       <TimesheetCard
+        containerRef={timesheetRef}
+        selected={selected}
+        setSelected={setSelected}
+        setRows={setRows}
+        missingIds={new Set(missing.flatMap((m) => m.rowIds.map((id) => `${m.field}:${id}`)))}
         draft={draft}
         profile={profile}
         showRequester={showRequester}
@@ -434,6 +489,11 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 }
 
 function TimesheetCard({
+  containerRef,
+  selected,
+  setSelected,
+  setRows,
+  missingIds,
   draft,
   profile,
   showRequester,
@@ -447,6 +507,12 @@ function TimesheetCard({
   removeRow,
   toTime,
 }: {
+  containerRef: React.Ref<HTMLDivElement>;
+  selected: Set<string>;
+  setSelected: (ids: Set<string>) => void;
+  setRows: (ids: Set<string>, patch: Partial<TimesheetRow>) => void;
+  /** "field:rowId" for cells a template needs but that are empty. */
+  missingIds: Set<string>;
   draft: InvoiceDraft;
   profile: Profile;
   showRequester: boolean;
@@ -462,7 +528,17 @@ function TimesheetCard({
 }) {
   const { t, language } = useStore();
   const categories = profile.categories;
+  const allSelected = draft.timesheet.length > 0 && draft.timesheet.every((r) => selected.has(r.id));
+  const selectedCount = draft.timesheet.filter((r) => selected.has(r.id)).length;
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(selected);
+    if (on) next.add(id);
+    else next.delete(id);
+    setSelected(next);
+  };
+  const missingCell = (field: ListField, id: string) => (missingIds.has(`${field}:${id}`) ? 'bg-coral-soft' : '');
   return (
+    <div ref={containerRef} className="scroll-mt-24">
     <Card
       title={t('invoice.timesheet')}
       icon={<Sheet size={20} />}
@@ -478,16 +554,34 @@ function TimesheetCard({
         {t('invoice.timesheetLinked')}
       </p>
       {hasUnlinked && <p className="mb-3 rounded-xl border border-peach bg-peach-soft px-3 py-2 text-sm text-ink">{t('invoice.timesheetUnlinked')}</p>}
-      <div className="overflow-x-auto rounded-xl border border-line">
-        <table className="w-full min-w-[820px] text-sm">
+      {selectedCount > 0 && (showRequester || showProject) && (
+        <BulkFill
+          count={selectedCount}
+          showRequester={showRequester}
+          showProject={showProject}
+          onApply={(patch) => setRows(selected, patch)}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
+      <div className="relative overflow-x-auto rounded-xl border border-line">
+        <table className="w-full min-w-[960px] text-sm">
           <thead className="bg-coral text-ink">
             <tr>
+              <th scope="col" className="w-10 px-2 py-2">
+                <input
+                  type="checkbox"
+                  aria-label={t('invoice.selectAll')}
+                  checked={allSelected}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(draft.timesheet.map((r) => r.id)) : new Set())}
+                  className="h-4 w-4 accent-tomato"
+                />
+              </th>
               <th scope="col" className={`${th} w-40`}>{t('common.date')}</th>
               <th scope="col" className={`${th} w-32`}>{t('common.start')}</th>
               <th scope="col" className={`${th} w-32`}>{t('common.end')}</th>
               <th scope="col" className={`${th} w-28 text-right`}>{t('common.hours')}</th>
-              {showRequester && <th scope="col" className={`${th} w-48`}>{t('fields.requestedBy')}</th>}
-              {showProject && <th scope="col" className={`${th} w-48`}>{t('fields.project')}</th>}
+              {showRequester && <th scope="col" className={`${th} min-w-48`}>{t('fields.requestedBy')}</th>}
+              {showProject && <th scope="col" className={`${th} min-w-48`}>{t('fields.project')}</th>}
               {showCategory && <th scope="col" className={`${th} w-44`}>{t('common.category')}</th>}
               <th scope="col" className={`${th} min-w-48`}>{t('common.description')}</th>
               {customFields.map((f) => (
@@ -502,7 +596,16 @@ function TimesheetCard({
             {draft.timesheet.map((row, i) => {
               const calculated = hoursMismatch(row);
               return (
-                <tr key={row.id} className="border-t border-line align-top odd:bg-surface even:bg-peach-soft">
+                <tr key={row.id} className={`border-t border-line align-top ${selected.has(row.id) ? 'bg-sky-soft' : 'odd:bg-surface even:bg-peach-soft'}`}>
+                  <td className="px-2 py-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      aria-label={t('invoice.selectRow', { n: i + 1 })}
+                      checked={selected.has(row.id)}
+                      onChange={(e) => toggle(row.id, e.target.checked)}
+                      className="h-4 w-4 accent-tomato"
+                    />
+                  </td>
                   <td className="px-1 py-1">
                     <CellInput type="date" aria-label={`${t('common.date')} ${i + 1}`} value={row.date} onChange={(e) => setRow(row.id, { date: e.target.value })} />
                   </td>
@@ -537,13 +640,13 @@ function TimesheetCard({
                     )}
                   </td>
                   {showRequester && (
-                    <td className="px-1 py-1">
-                      <ComboInput compact label={`${t('fields.requestedBy')} ${i + 1}`} value={row.requestedBy ?? ''} options={profile.requesters} onChange={(v) => setRow(row.id, { requestedBy: v })} />
+                    <td className={`px-1 py-1 ${missingCell('requestedBy', row.id)}`}>
+                      <FieldValueInput field="requestedBy" compact label={`${t('fields.requestedBy')} ${i + 1}`} value={row.requestedBy ?? ''} onChange={(v) => setRow(row.id, { requestedBy: v })} />
                     </td>
                   )}
                   {showProject && (
-                    <td className="px-1 py-1">
-                      <ComboInput compact label={`${t('fields.project')} ${i + 1}`} value={row.project ?? ''} options={profile.projects} onChange={(v) => setRow(row.id, { project: v })} />
+                    <td className={`px-1 py-1 ${missingCell('project', row.id)}`}>
+                      <FieldValueInput field="project" compact label={`${t('fields.project')} ${i + 1}`} value={row.project ?? ''} onChange={(v) => setRow(row.id, { project: v })} />
                     </td>
                   )}
                   {showCategory && (
@@ -592,7 +695,7 @@ function TimesheetCard({
           </tbody>
           <tfoot>
             <tr className="border-t border-line bg-sky font-semibold text-ink">
-              <td className="px-3 py-2" colSpan={3}>
+              <td className="px-3 py-2" colSpan={4}>
                 {t('common.total')}
               </td>
               <td className="tabular px-3 py-2 text-right">{formatNumber(round2(totalHours), language)}</td>
@@ -602,5 +705,56 @@ function TimesheetCard({
         </table>
       </div>
     </Card>
+    </div>
+  );
+}
+
+/** Sets Requested by or Project on every selected timesheet row at once. */
+function BulkFill({
+  count,
+  showRequester,
+  showProject,
+  onApply,
+  onClear,
+}: {
+  count: number;
+  showRequester: boolean;
+  showProject: boolean;
+  onApply: (patch: Partial<TimesheetRow>) => void;
+  onClear: () => void;
+}) {
+  const { t } = useStore();
+  const toast = useToast();
+  const [values, setValues] = useState<Record<ListField, string>>({ requestedBy: '', project: '' });
+  const fields = (['requestedBy', 'project'] as const).filter((f) => (f === 'requestedBy' ? showRequester : showProject));
+  const fieldName = (field: ListField) => t(field === 'requestedBy' ? 'fields.requestedBy' : 'fields.project');
+  const apply = (field: ListField) => {
+    onApply({ [field]: values[field] });
+    toast(t('invoice.bulkDone', { count, field: fieldName(field) }));
+  };
+  return (
+    <section aria-label={t('invoice.bulkTitle')} className="mb-3 rounded-xl border border-sky bg-sky-soft p-3 text-sm">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">{t('invoice.bulkSelected', { count })}</p>
+        <Button size="sm" onClick={onClear}>
+          {t('invoice.bulkClear')}
+        </Button>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {fields.map((field) => (
+          <div key={field} className="flex items-end gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <label htmlFor={`bulk-${field}`} className="font-medium">
+                {t('invoice.bulkSet', { field: fieldName(field) })}
+              </label>
+              <FieldValueInput field={field} id={`bulk-${field}`} value={values[field]} onChange={(v) => setValues((prev) => ({ ...prev, [field]: v }))} />
+            </div>
+            <Button size="sm" variant="primary" onClick={() => apply(field)}>
+              {t('invoice.bulkApply')}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

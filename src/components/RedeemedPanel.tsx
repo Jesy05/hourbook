@@ -96,7 +96,7 @@ export function RedeemedTable({ items, compact = false }: { items: RedeemedEntry
       {items.length === 0 ? (
         <EmptyState icon={<CalendarMinus size={24} />}>{t('redeemed.empty')}</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line">
+        <div className="relative overflow-x-auto rounded-xl border border-line">
           <table className="w-full text-sm">
             <thead className="bg-coral text-left text-ink">
               <tr>
