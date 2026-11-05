@@ -304,6 +304,6 @@ function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
-export function formatInvoiceNumber(prefix: string, value: number): string {
-  return `${prefix}${String(value).padStart(4, '0')}`;
+export function formatInvoiceNumber(prefix: string, value: number, padding = 4): string {
+  return `${prefix}${String(value).padStart(padding, '0')}`;
 }

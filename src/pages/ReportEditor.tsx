@@ -64,10 +64,10 @@ export function ReportEditor() {
         const file = await excel.downloadInvoice(draft);
         toast(t('reports.downloaded', { file }));
         // Move to the next invoice number only when this draft used the current one.
-        if (draft.invoiceNumber === formatInvoiceNumber(profile.invoice.prefix, profile.invoice.nextNumber)) {
+        if (draft.invoiceNumber === formatInvoiceNumber(profile.invoice.prefix, profile.invoice.nextNumber, profile.invoice.padding)) {
           const nextNumber = profile.invoice.nextNumber + 1;
           saveProfile({ ...profile, invoice: { ...profile.invoice, nextNumber } });
-          toast(t('invoice.numberBumped', { number: formatInvoiceNumber(profile.invoice.prefix, nextNumber) }), { tone: 'info' });
+          toast(t('invoice.numberBumped', { number: formatInvoiceNumber(profile.invoice.prefix, nextNumber, profile.invoice.padding) }), { tone: 'info' });
         }
       } else {
         const file = await excel.downloadOvertime(profile.name, draft, redeemedInPeriod(redeemed, draft));

@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 import type { InvoiceDraft, OvertimeDraft, RedeemedEntry } from '../types';
+import { normalizeDraft } from '../migrate';
 import { buildInvoiceWorkbook, invoiceFileName } from './invoice';
 import { buildOvertimeWorkbook, overtimeFileName } from './overtime';
 
@@ -87,7 +88,8 @@ describe('overtime workbook', () => {
   });
 });
 
-const invoiceDraft: InvoiceDraft = {
+// Written in the v1 shape and upgraded, like data saved before schema v2.
+const invoiceDraft = normalizeDraft({
   id: 'i1',
   profileId: 'p2',
   type: 'invoice',
@@ -111,7 +113,7 @@ const invoiceDraft: InvoiceDraft = {
     { id: 't1', date: '2026-10-01', start: '09:00:00', end: '11:30:00', hours: 2.5, category: 'Travel booking', description: 'Flights' },
     { id: 't2', date: '2026-10-02', start: '', end: '', hours: 1, category: 'Calendar', description: '' },
   ],
-};
+} as unknown as InvoiceDraft, []) as InvoiceDraft;
 
 describe('invoice workbook', () => {
   it('has an invoice and a timesheet sheet with formulas', async () => {

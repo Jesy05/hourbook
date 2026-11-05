@@ -1,3 +1,4 @@
+import { normalizeDraft, normalizeProfile } from './migrate';
 import type { AppData } from './types';
 
 /*
@@ -6,7 +7,7 @@ import type { AppData } from './types';
  */
 
 export const STORAGE_KEY = 'hourbook:data';
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export function emptyData(): AppData {
   return {
@@ -50,11 +51,19 @@ export function clearData(): void {
   }
 }
 
-/** Upgrades older schemas to the current one. */
+/**
+ * Upgrades older schemas to the current one.
+ * v0 -> v1: fill the top-level collections.
+ * v1 -> v2: profile and invoice draft fields, done in migrate.ts (it also runs
+ * on current data, where it changes nothing).
+ */
 function migrate(data: Record<string, unknown>): Record<string, unknown> {
   const version = typeof data.version === 'number' ? data.version : 0;
   if (version < 1) {
     data = { ...emptyData(), ...data, version: 1 };
+  }
+  if (version < 2) {
+    data = { ...data, version: 2 };
   }
   return data;
 }
@@ -84,14 +93,15 @@ export function validateData(input: unknown): AppData | null {
   ) {
     return null;
   }
+  const normalizedProfiles = (data.profiles as AppData['profiles']).map(normalizeProfile);
   return {
     version: SCHEMA_VERSION,
     language: data.language === 'en' ? 'en' : 'es',
     activeProfileId: typeof data.activeProfileId === 'string' ? data.activeProfileId : null,
-    profiles: data.profiles as AppData['profiles'],
+    profiles: normalizedProfiles,
     entries: data.entries as AppData['entries'],
     redeemed: data.redeemed as AppData['redeemed'],
-    drafts: data.drafts as AppData['drafts'],
+    drafts: (data.drafts as AppData['drafts']).map((d) => normalizeDraft(d, normalizedProfiles)),
     timers: isObject(data.timers) ? (data.timers as AppData['timers']) : {},
   };
 }

@@ -11,7 +11,7 @@ import {
   overtimeSummary,
   invoiceTotals,
 } from './calc';
-import { newId } from './defaults';
+import { defaultTemplates, emptyClient, newId } from './defaults';
 import type { Entry, InvoiceDraft, InvoiceLine, OvertimeDraft, Profile, RedeemedEntry, TimesheetRow } from './types';
 
 /* Builds editable report drafts from raw entries. Drafts never point back at entries. */
@@ -32,7 +32,18 @@ export function generateInvoiceDraft(
   end: string,
   today: string,
   existing?: InvoiceDraft,
+  options: { clientId?: string | null; templateId?: string | null } = {},
 ): InvoiceDraft {
+  const settings = profile.invoice;
+  const template =
+    settings.templates.find((t) => t.id === options.templateId) ??
+    existing?.template ??
+    settings.templates.find((t) => t.id === settings.defaultTemplateId) ??
+    settings.templates[0] ??
+    defaultTemplates()[0];
+  const clientId = options.clientId !== undefined ? options.clientId : (existing?.clientId ?? settings.defaultClientId);
+  const savedClient = settings.clients.find((c) => c.id === clientId);
+  const client = savedClient ? { ...savedClient } : (existing?.client ?? emptyClient());
   const periodEntries = entries
     .filter((e) => e.profileId === profile.id && inRange(e.date, start, end))
     .sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? '').localeCompare(b.start ?? ''));
@@ -49,13 +60,24 @@ export function generateInvoiceDraft(
     updatedAt: now,
     edited: false,
     palette: existing?.palette ?? profile.excelPalette,
-    invoiceNumber: existing?.invoiceNumber ?? formatInvoiceNumber(profile.invoice.prefix, profile.invoice.nextNumber),
+    invoiceNumber: existing?.invoiceNumber ?? formatInvoiceNumber(settings.prefix, settings.nextNumber, settings.padding),
     issueDate: existing?.issueDate ?? today,
-    fromName: profile.name,
+    fromName: settings.business.name || profile.name,
     fromContact: profile.contact,
-    billTo: profile.invoice.billTo,
-    currency: profile.invoice.currency,
-    paymentDetails: profile.invoice.paymentDetails,
+    billTo: [client.company, client.address].filter(Boolean).join(', '),
+    currency: settings.currency,
+    currencySymbol: settings.currencySymbol,
+    paymentDetails: settings.paymentDetails,
+    business: { ...settings.business, name: settings.business.name || profile.name },
+    clientId: savedClient ? savedClient.id : null,
+    client,
+    terms: { ...settings.terms },
+    notes: existing?.notes ?? settings.notes,
+    footer: existing?.footer ?? settings.footer,
+    adjustments: existing?.adjustments ?? settings.adjustments.map((a) => ({ ...a, id: newId() })),
+    extraLines: existing?.extraLines ?? [],
+    rounding: settings.rounding,
+    template: { ...template, sections: { ...template.sections } },
     linesManual: false,
     lines: linesFromTimesheet(timesheet, [], rate, profile.categories[0] ?? 'Services'),
     timesheet,
