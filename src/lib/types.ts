@@ -278,6 +278,8 @@ export interface InvoiceDraft {
   clientId: string | null;
   client: Client;
   terms: PaymentTerms;
+  /** Due date set by hand (YYYY-MM-DD); wins over the one from the terms. */
+  dueDateOverride?: string;
   notes: string;
   footer: string;
   adjustments: Adjustment[];

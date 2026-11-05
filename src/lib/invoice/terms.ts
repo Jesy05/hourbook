@@ -20,6 +20,11 @@ export function dueDate(issueDate: string, terms: PaymentTerms): string | null {
   return format(addDays(parseISO(issueDate), days), 'yyyy-MM-dd');
 }
 
+/** Due date of an invoice: the one set by hand, otherwise the one from the terms. */
+export function draftDueDate(draft: { issueDate: string; terms: PaymentTerms; dueDateOverride?: string }): string | null {
+  return draft.dueDateOverride || dueDate(draft.issueDate, draft.terms);
+}
+
 /** Terms as printed on the invoice, in English for the client: "Net 14", "Due on receipt". */
 export function termsLabel(terms: PaymentTerms): string {
   switch (terms.preset) {

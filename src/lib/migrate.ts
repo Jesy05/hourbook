@@ -219,6 +219,7 @@ function normalizeInvoiceDraft(value: InvoiceDraft, profile: Profile | undefined
     clientId: typeof d.clientId === 'string' ? d.clientId : null,
     client,
     terms: normalizeTerms(d.terms, defaultTerms()),
+    dueDateOverride: /^\d{4}-\d{2}-\d{2}$/.test(str(d.dueDateOverride)) ? str(d.dueDateOverride) : undefined,
     notes: str(d.notes),
     footer: str(d.footer, 'Thank you for your business.'),
     adjustments: list(d.adjustments, normalizeAdjustment),

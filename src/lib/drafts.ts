@@ -70,6 +70,8 @@ export function generateInvoiceDraft(
     clientId: savedClient ? savedClient.id : null,
     client,
     terms: { ...settings.terms },
+    // A due date set by hand survives regenerating from entries.
+    ...(existing?.dueDateOverride ? { dueDateOverride: existing.dueDateOverride } : {}),
     notes: existing?.notes ?? settings.notes,
     footer: existing?.footer ?? settings.footer,
     adjustments: existing?.adjustments ?? settings.adjustments.map((a) => ({ ...a, id: newId() })),

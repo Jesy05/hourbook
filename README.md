@@ -43,7 +43,7 @@ Everything is optional and saved as you type:
 - **Your business (From)**: name, address, email, phone, tax ID and a logo (PNG or JPG up to 300 KB, stored as a data URL).
 - **Clients (Bill to)**: company, contact, address, billing email and CC. Save several and mark one as the default; pick another one when generating.
 - **Currency and rates**: ISO code (USD by default) with an optional custom symbol, a default hourly rate and special rates by category, project or client (project wins, then category, then client).
-- **Payment terms**: Due on receipt, Net 7, Net 14, Net 15, Net 30 or custom text with optional days. The due date is calculated from the issue date.
+- **Payment terms**: Due on receipt, Net 7, Net 14, Net 15, Net 30 or custom text with optional days. The due date is calculated from the issue date; on each invoice it can also be set by hand (with a button to go back to the one from the terms).
 - **Numbering**: prefix, next number and digits (e.g. `INV-0001`), with a reset. The number only goes up when an invoice is actually exported, and the notice has an Undo button.
 - **Payment instructions, notes and footer**. Do not store full card numbers here: the text goes on the invoice.
 - **Taxes and discounts** added to every new invoice, as a percentage or a fixed amount. Discounts come off the subtotal first; taxes apply to the discounted amount.

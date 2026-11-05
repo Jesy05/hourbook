@@ -4,7 +4,7 @@ import type { InvoiceTemplate, TimesheetRow } from '../types';
 import { renderFileName, safeFilePart } from './filename';
 import { buildLines, computeTotals, groupRows, resolveRate, servicePeriod, type RateContext } from './lines';
 import { excelCurrencyFormat, formatCurrency } from './money';
-import { dueDate, termsDays, termsLabel } from './terms';
+import { draftDueDate, dueDate, termsDays, termsLabel } from './terms';
 import { formatInvoiceDate, renderDescription } from './template';
 
 const row = (id: string, date: string, hours: number, requestedBy: string, project: string, extra: Partial<TimesheetRow> = {}): TimesheetRow => ({
@@ -128,6 +128,13 @@ describe('payment terms', () => {
   it('Net 14 crosses into the next month', () => {
     expect(dueDate('2026-10-25', { preset: 'net14', customText: '', customDays: null })).toBe('2026-11-08');
     expect(dueDate('2026-12-20', { preset: 'net14', customText: '', customDays: null })).toBe('2027-01-03');
+  });
+
+  it('a due date set by hand wins over the terms', () => {
+    const terms = { preset: 'net14' as const, customText: '', customDays: null };
+    expect(draftDueDate({ issueDate: '2026-10-25', terms })).toBe('2026-11-08');
+    expect(draftDueDate({ issueDate: '2026-10-25', terms, dueDateOverride: '2026-12-15' })).toBe('2026-12-15');
+    expect(draftDueDate({ issueDate: '2026-10-25', terms: { ...terms, preset: 'custom' }, dueDateOverride: '2026-11-30' })).toBe('2026-11-30');
   });
 
   it('labels and days for each preset', () => {

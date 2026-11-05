@@ -6,7 +6,7 @@ import { formatDay, formatNumber, formatPeriodEnglish } from '../lib/format';
 import { hoursMismatch, round2, roundingNote } from '../lib/invoice/hours';
 import { extraAmount, lineAmount, servicePeriod } from '../lib/invoice/lines';
 import { formatCurrency } from '../lib/invoice/money';
-import { dueDate, TERMS_PRESETS, termsLabel } from '../lib/invoice/terms';
+import { draftDueDate, dueDate, TERMS_PRESETS, termsLabel } from '../lib/invoice/terms';
 import { formatInvoiceDate } from '../lib/invoice/template';
 import { missingTemplateFields, templateListFields, type ListField, type MissingField } from '../lib/fieldValues';
 import type { MessageKey } from '../lib/i18n';
@@ -26,7 +26,7 @@ export function invoiceEmail(draft: InvoiceDraft) {
   const period = servicePeriod(draft.timesheet, draft.periodStart, draft.periodEnd, draft.template.periodMode);
   const periodText = formatPeriodEnglish(period.start, period.end);
   const total = `${formatCurrency(totals.total, draft.currency, draft.currencySymbol)} ${draft.currency}`;
-  const due = dueDate(draft.issueDate, draft.terms);
+  const due = draftDueDate(draft);
   const name = draft.business.name || draft.fromName;
   const firstName = name.split(' ')[0] ?? name;
   const dueText = due ? `, due ${formatInvoiceDate(due, 'MMM D, YYYY')}` : '';
@@ -63,7 +63,8 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
   const entryFor = (row: TimesheetRow) => (row.entryId ? data.entries.find((e) => e.id === row.entryId) : undefined);
   const hasUnlinked = draft.timesheet.some((row) => !entryFor(row));
   const period = servicePeriod(draft.timesheet, draft.periodStart, draft.periodEnd, draft.template.periodMode);
-  const due = dueDate(draft.issueDate, draft.terms);
+  const due = draftDueDate(draft);
+  const termsDue = dueDate(draft.issueDate, draft.terms);
 
   const set = <K extends keyof InvoiceDraft>(key: K, value: InvoiceDraft[K]) => onChange({ ...draft, [key]: value });
 
@@ -164,9 +165,14 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
               </Select>
             )}
           </Field>
-          <Field label={t('invoiceSettings.terms')} hint={due ? t('invoice.dueOn', { date: formatDay(due, language) }) : t('invoiceSettings.noDue')}>
+          <Field label={t('invoiceSettings.terms')}>
             {(p) => (
-              <Select {...p} value={draft.terms.preset} onChange={(e) => set('terms', { ...draft.terms, preset: e.target.value as InvoiceDraft['terms']['preset'] })}>
+              <Select
+                {...p}
+                value={draft.terms.preset}
+                // Picking terms again means "use the terms": a hand-set due date is dropped.
+                onChange={(e) => onChange({ ...draft, terms: { ...draft.terms, preset: e.target.value as InvoiceDraft['terms']['preset'] }, dueDateOverride: undefined })}
+              >
                 {TERMS_PRESETS.map((preset) => (
                   <option key={preset} value={preset}>
                     {preset === 'custom' ? t('invoiceSettings.customTerms') : termsLabel({ ...draft.terms, preset })}
@@ -175,6 +181,39 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
               </Select>
             )}
           </Field>
+          <div className="flex flex-col gap-1.5">
+            <Field
+              label={t('invoice.dueDate')}
+              hint={draft.dueDateOverride ? t('invoice.dueManual') : due ? t('invoice.dueFromTerms') : t('invoiceSettings.noDue')}
+            >
+              {(p) => (
+                <TextInput
+                  {...p}
+                  type="date"
+                  value={due ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    set('dueDateOverride', value && value !== termsDue ? value : undefined);
+                  }}
+                />
+              )}
+            </Field>
+            {draft.dueDateOverride && draft.issueDate && draft.dueDateOverride < draft.issueDate && (
+              <p className="flex items-center gap-1 text-xs font-medium text-brand">
+                <TriangleAlert size={12} aria-hidden="true" />
+                {t('invoice.dueBeforeIssue')}
+              </p>
+            )}
+            {draft.dueDateOverride && (
+              <button
+                type="button"
+                className="self-start rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold hover:bg-peach-soft"
+                onClick={() => set('dueDateOverride', undefined)}
+              >
+                {termsDue ? t('invoice.dueReset', { date: formatDay(termsDue, language) }) : t('invoice.dueResetNone')}
+              </button>
+            )}
+          </div>
           {draft.terms.preset === 'custom' && (
             <>
               <Field label={t('invoiceSettings.termsText')}>
@@ -187,7 +226,9 @@ export function InvoiceEditor({ draft, onChange }: { draft: InvoiceDraft; onChan
                     type="number"
                     min={0}
                     value={draft.terms.customDays ?? ''}
-                    onChange={(e) => set('terms', { ...draft.terms, customDays: e.target.value === '' ? null : Math.max(0, Math.floor(Number(e.target.value))) })}
+                    onChange={(e) =>
+                      onChange({ ...draft, terms: { ...draft.terms, customDays: e.target.value === '' ? null : Math.max(0, Math.floor(Number(e.target.value))) }, dueDateOverride: undefined })
+                    }
                   />
                 )}
               </Field>

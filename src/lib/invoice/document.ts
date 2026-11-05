@@ -2,7 +2,7 @@ import type { ColumnKey, CustomField, CustomValue, DateFormat, InvoiceDraft } fr
 import { round2, roundingNote } from './hours';
 import { computeTotals, extraAmount, lineAmount, servicePeriod, type InvoiceTotals } from './lines';
 import { formatCurrency } from './money';
-import { dueDate, termsLabel } from './terms';
+import { draftDueDate, termsLabel } from './terms';
 import { formatDateSpan, formatInvoiceDate } from './template';
 
 /*
@@ -126,7 +126,7 @@ export function buildInvoiceDocument(draft: InvoiceDraft, customFields: CustomFi
 
   const totals = computeTotals(draft.lines, draft.extraLines, draft.adjustments);
   const period = servicePeriod(draft.timesheet, draft.periodStart, draft.periodEnd, tpl.periodMode);
-  const due = sections.terms ? dueDate(draft.issueDate, draft.terms) : null;
+  const due = sections.terms ? draftDueDate(draft) : null;
   const business = draft.business;
 
   const timesheet: DocTimesheet | null = sections.timesheet

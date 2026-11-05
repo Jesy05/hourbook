@@ -179,6 +179,16 @@ describe('invoice workbook', () => {
     expect(inv.getCell(moneyCell.address).numFmt).toContain('"$"');
   });
 
+  it('uses a due date set by hand, and keeps it when regenerating', async () => {
+    const manual = { ...draft, dueDateOverride: '2026-12-15' };
+    const wb = await roundTrip(buildInvoiceWorkbook(manual, { customFields: [] }));
+    const inv = wb.getWorksheet('Invoice')!;
+    const row = inv.getCell(cells(inv).find((c) => c.value === 'Due date')!.address).row;
+    expect(inv.getCell(`B${row}`).value).toEqual(new Date(Date.UTC(2026, 11, 15)));
+    expect(generateInvoiceDraft(profile, entries, '2026-10-01', '2026-10-31', '2026-10-31', manual).dueDateOverride).toBe('2026-12-15');
+    expect(normalizeDraft({ ...manual, dueDateOverride: 'not a date' }, [profile])).not.toHaveProperty('dueDateOverride', 'not a date');
+  });
+
   it('adds the timesheet sheet with every field', async () => {
     const wb = await roundTrip(buildInvoiceWorkbook(draft, { customFields: [] }));
     const ts = wb.getWorksheet('Timesheet')!;
